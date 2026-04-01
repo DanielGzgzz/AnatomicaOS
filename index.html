@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anatomica OS | Client-Side Biomechanical and Nutritional Engine</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="os-header">
+        <div class="header-content">
+            <h1>Anatomica OS</h1>
+            <p class="subtitle">A Fully Integrated, Client-Side Biomechanical and Nutritional Engine</p>
+        </div>
+        <nav class="main-nav">
+            <ul>
+                <li><button onclick="app.showModule('biometrics')" class="nav-btn active" data-target="biometrics">Biometrics</button></li>
+                <li><button onclick="app.showModule('kinesiology')" class="nav-btn" data-target="kinesiology">Kinesiology</button></li>
+                <li><button onclick="app.showModule('visualizer')" class="nav-btn" data-target="visualizer">Visualizer</button></li>
+                <li><button onclick="app.showModule('nutrition')" class="nav-btn" data-target="nutrition">Nutrition</button></li>
+                <li><button onclick="app.showModule('juicer')" class="nav-btn" data-target="juicer">Juicer</button></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="os-main">
+        <!-- Biometric & Performance Engine -->
+        <section id="biometrics" class="module active">
+            <header class="module-header">
+                <h2>Biometric & Performance Engine</h2>
+                <p>Log baseline data and performance benchmarks.</p>
+            </header>
+            <div class="module-content" id="biometrics-content">
+                <div class="grid-2">
+                    <div>
+                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Baseline Profile</h3>
+                        <form id="baseline-form" class="clinical-form">
+                            <div class="form-group">
+                                <label for="gender">Biological Sex</label>
+                                <select id="gender" required>
+                                    <option value="">Select...</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="weight">Body Weight (kg)</label>
+                                <input type="number" id="weight" step="0.1" required placeholder="e.g. 75.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="height">Height (cm)</label>
+                                <input type="number" id="height" step="1" required placeholder="e.g. 180">
+                            </div>
+                            <div class="form-group">
+                                <label for="age">Age (years)</label>
+                                <input type="number" id="age" required placeholder="e.g. 30">
+                            </div>
+                        </form>
+                    </div>
+
+                    <div>
+                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Performance Benchmarks</h3>
+                        <form id="performance-form" class="clinical-form">
+                            <div class="form-group">
+                                <label for="strength-load">Strength: Max Load Lifted (kg) [Squat/Deadlift Avg]</label>
+                                <input type="number" id="strength-load" step="0.5" placeholder="e.g. 100">
+                            </div>
+                            <div class="form-group">
+                                <label for="aerobic-pace">Aerobic: 5k Pace (min/km)</label>
+                                <input type="number" id="aerobic-pace" step="0.1" placeholder="e.g. 5.5">
+                            </div>
+                            <div class="form-group">
+                                <label for="anaerobic-intervals">Anaerobic: Sprint Intervals Completed (count)</label>
+                                <input type="number" id="anaerobic-intervals" placeholder="e.g. 8">
+                            </div>
+                            <button type="button" class="btn-primary mt-1" style="margin-top: 1rem;" onclick="app.generateSchedule()">Generate Protocol</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="schedule-output" class="result-card" style="display: none; margin-top: 2rem;">
+                    <h4>Generated Weekly Protocol Summary</h4>
+                    <p id="schedule-summary" style="font-family: var(--font-mono); font-size: 0.9rem;"></p>
+                    <table class="data-table" id="schedule-table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Phase</th>
+                                <th>Focus</th>
+                                <th>Intensity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tri-Phasic Kinesiology Protocol -->
+        <section id="kinesiology" class="module" style="display: none;">
+            <header class="module-header">
+                <h2>Tri-Phasic Kinesiology Protocol</h2>
+                <p>Targeted routines: Strength, Aerobic, Anaerobic.</p>
+            </header>
+            <div class="module-content" id="kinesiology-content">
+                <div id="kinesiology-warning" class="status-badge status-alert" style="display: block;">
+                    No schedule generated. Please complete Biometrics profile first.
+                </div>
+                <div id="kinesiology-data" style="display: none;">
+                    <div class="grid-2">
+                        <div class="result-card">
+                            <h4>Protocol Breakdown</h4>
+                            <div id="kinesiology-breakdown"></div>
+                        </div>
+                        <div class="result-card">
+                            <h4>Isolated Rest Periods</h4>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Muscle Group / System</th>
+                                        <th>Required Rest (Hours)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kinesiology-rest-table">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Procedural Anatomy & Biomechanics Visualizer -->
+        <section id="visualizer" class="module" style="display: none;">
+            <header class="module-header">
+                <h2>Procedural Anatomy & Biomechanics Visualizer</h2>
+                <p>Interactive anatomical model highlighting active vs recovering muscle groups.</p>
+            </header>
+            <div class="module-content" id="visualizer-content">
+                <div class="grid-2">
+                    <div>
+                        <div class="form-group mb-1">
+                            <label for="vis-day-select">Select Protocol Day to Visualize</label>
+                            <select id="vis-day-select" onchange="app.renderVisualizer()">
+                                <option value="">-- Generate Protocol First --</option>
+                            </select>
+                        </div>
+                        <div class="result-card mt-1" id="vis-details" style="display:none;">
+                            <h4>Active Systems Highlighted</h4>
+                            <p id="vis-desc" style="font-family: var(--font-mono); font-size: 0.9rem; margin-top: 0.5rem;"></p>
+                            <ul style="list-style: none; margin-top: 1rem; font-size: 0.85rem;">
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; margin-right: 5px;"></span> High Stress (Active)</li>
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; margin-right: 5px;"></span> Moderate Stress</li>
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #22c55e; margin-right: 5px;"></span> Recovering</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="canvas-container">
+                        <canvas id="anatomy-canvas" width="300" height="500"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chrono-Nutritional & Satiety Matrix -->
+        <section id="nutrition" class="module" style="display: none;">
+            <header class="module-header">
+                <h2>Chrono-Nutritional & Satiety Matrix</h2>
+                <p>Optimal calorie and macronutrient timing mapped to workout windows.</p>
+            </header>
+            <div class="module-content" id="nutrition-content">
+                <div id="nutrition-warning" class="status-badge status-alert" style="display: block;">
+                    No profile data. Please complete Biometrics profile first.
+                </div>
+                <div id="nutrition-data" style="display: none;">
+                    <div class="grid-2">
+                        <div>
+                            <div class="result-card">
+                                <h4>Daily Baseline Requirements (TDEE)</h4>
+                                <div id="nutrition-tdee" style="font-family: var(--font-mono); font-size: 1.1rem; margin: 1rem 0;"></div>
+                                <table class="data-table">
+                                    <thead>
+                                        <tr><th>Macro</th><th>Grams</th><th>% of Calories</th></tr>
+                                    </thead>
+                                    <tbody id="nutrition-macros"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="result-card">
+                                <h4>Chrono-Nutritional Meal Timing</h4>
+                                <p style="font-size: 0.85rem; margin-bottom: 1rem; color: var(--text-muted);">Assumes 17:00 (5:00 PM) standard workout window.</p>
+                                <div id="nutrition-timing"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- The Juicer Translator (Micronutrient Module) -->
+        <section id="juicer" class="module" style="display: none;">
+            <header class="module-header">
+                <h2>The Juicer Translator</h2>
+                <p>Micronutrient gap analysis and targeted restorative recipes.</p>
+            </header>
+            <div class="module-content" id="juicer-content">
+                <div class="grid-2">
+                    <div>
+                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Dietary Assessment</h3>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select foods commonly missing from your diet to identify potential micronutrient deficits.</p>
+
+                        <form id="juicer-form" class="clinical-form">
+                            <div class="form-group">
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-citrus" class="juicer-checkbox"> Missing Citrus Fruits (Oranges, Lemons)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-leafy" class="juicer-checkbox"> Missing Leafy Greens (Spinach, Kale)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-dairy" class="juicer-checkbox"> Missing Dairy (Milk, Yogurt)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-meat" class="juicer-checkbox"> Missing Red Meat (Beef, Liver)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-sun" class="juicer-checkbox"> Lack of Sun Exposure</label>
+                            </div>
+                            <button type="button" class="btn-primary" onclick="app.translateJuice()">Run Deficit Analysis</button>
+                        </form>
+                    </div>
+
+                    <div id="juicer-output" style="display: none;">
+                        <div class="result-card">
+                            <h4>Identified Deficits</h4>
+                            <ul id="juicer-deficits" style="margin: 1rem 0; padding-left: 1.5rem; color: #b91c1c; font-weight: bold; font-family: var(--font-mono); font-size: 0.9rem;">
+                            </ul>
+
+                            <h4>Juicer Translation (Restorative Protocol)</h4>
+                            <div id="juicer-recipe" style="margin-top: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 4px;">
+                                <!-- Recipe output -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="os-footer">
+        <p>Anatomica OS - Standalone Academic Engine</p>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
