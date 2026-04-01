@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anatomica OS | Client-Side Biomechanical and Nutritional Engine</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Include Three.js for WebGL Anatomy Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <header class="os-header">
@@ -19,6 +22,7 @@
                 <li><button onclick="app.showModule('visualizer')" class="nav-btn" data-target="visualizer">Visualizer</button></li>
                 <li><button onclick="app.showModule('nutrition')" class="nav-btn" data-target="nutrition">Nutrition</button></li>
                 <li><button onclick="app.showModule('juicer')" class="nav-btn" data-target="juicer">Juicer</button></li>
+                <li><button onclick="app.showModule('bibliography')" class="nav-btn" data-target="bibliography">Bibliography</button></li>
             </ul>
         </nav>
     </header>
@@ -33,27 +37,43 @@
             <div class="module-content" id="biometrics-content">
                 <div class="grid-2">
                     <div>
-                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Baseline Profile</h3>
+                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Baseline & Biomechanics</h3>
                         <form id="baseline-form" class="clinical-form">
                             <div class="form-group">
                                 <label for="gender">Biological Sex</label>
                                 <select id="gender" required>
-                                    <option value="">Select...</option>
-                                    <option value="male">Male</option>
+                                    <option value="male" selected>Male</option>
                                     <option value="female">Female</option>
                                 </select>
                             </div>
                             <div class="form-group">
                                 <label for="weight">Body Weight (kg)</label>
-                                <input type="number" id="weight" step="0.1" required placeholder="e.g. 75.5">
+                                <input type="number" id="weight" step="0.1" value="87" required>
                             </div>
                             <div class="form-group">
                                 <label for="height">Height (cm)</label>
-                                <input type="number" id="height" step="1" required placeholder="e.g. 180">
+                                <input type="number" id="height" step="1" value="180" required>
                             </div>
                             <div class="form-group">
                                 <label for="age">Age (years)</label>
-                                <input type="number" id="age" required placeholder="e.g. 30">
+                                <input type="number" id="age" value="30" required>
+                            </div>
+                            <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                                <label for="goal">Primary Macrocycle Goal</label>
+                                <select id="goal" required>
+                                    <option value="weight_loss" selected>Aggressive Weight Loss (Preserve Lean Mass)</option>
+                                    <option value="hypertrophy">Structural Hypertrophy</option>
+                                    <option value="conditioning">Athletic Conditioning (Jump Rope/Boxing Focus)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="injury">Active Joint/Structural Compromise</label>
+                                <select id="injury">
+                                    <option value="none" selected>None - Fully Operational</option>
+                                    <option value="knee">Knee Joint / Patellar Tendon</option>
+                                    <option value="shoulder">Shoulder Girdle / Rotator Cuff</option>
+                                    <option value="lower_back">Lumbar Spine / Sacroiliac</option>
+                                </select>
                             </div>
                         </form>
                     </div>
@@ -63,17 +83,17 @@
                         <form id="performance-form" class="clinical-form">
                             <div class="form-group">
                                 <label for="strength-load">Strength: Max Load Lifted (kg) [Squat/Deadlift Avg]</label>
-                                <input type="number" id="strength-load" step="0.5" placeholder="e.g. 100">
+                                <input type="number" id="strength-load" step="0.5" value="100" placeholder="e.g. 100">
                             </div>
                             <div class="form-group">
                                 <label for="aerobic-pace">Aerobic: 5k Pace (min/km)</label>
-                                <input type="number" id="aerobic-pace" step="0.1" placeholder="e.g. 5.5">
+                                <input type="number" id="aerobic-pace" step="0.1" value="5.5" placeholder="e.g. 5.5">
                             </div>
                             <div class="form-group">
                                 <label for="anaerobic-intervals">Anaerobic: Sprint Intervals Completed (count)</label>
-                                <input type="number" id="anaerobic-intervals" placeholder="e.g. 8">
+                                <input type="number" id="anaerobic-intervals" value="5" placeholder="e.g. 8">
                             </div>
-                            <button type="button" class="btn-primary mt-1" style="margin-top: 1rem;" onclick="app.generateSchedule()">Generate Protocol</button>
+                            <button type="button" class="btn-primary mt-1" style="margin-top: 1rem;" onclick="app.generateSchedule()">Generate Microcycle Protocol</button>
                         </form>
                     </div>
                 </div>
@@ -131,33 +151,43 @@
             </div>
         </section>
 
-        <!-- Procedural Anatomy & Biomechanics Visualizer -->
+        <!-- WebGL Procedural Anatomy & Biomechanics Visualizer -->
         <section id="visualizer" class="module" style="display: none;">
             <header class="module-header">
-                <h2>Procedural Anatomy & Biomechanics Visualizer</h2>
-                <p>Interactive anatomical model highlighting active vs recovering muscle groups.</p>
+                <h2>WebGL STAR TRAC™ Style 3D Muscular Map</h2>
+                <p>Interactive 360° procedural model isolating active mechanics (Drag to rotate).</p>
             </header>
             <div class="module-content" id="visualizer-content">
                 <div class="grid-2">
                     <div>
                         <div class="form-group mb-1">
-                            <label for="vis-day-select">Select Protocol Day to Visualize</label>
-                            <select id="vis-day-select" onchange="app.renderVisualizer()">
+                            <label for="vis-day-select">Select Protocol Phase to Isolate</label>
+                            <select id="vis-day-select" onchange="app.updateWebGLVisualizer()">
                                 <option value="">-- Generate Protocol First --</option>
                             </select>
                         </div>
-                        <div class="result-card mt-1" id="vis-details" style="display:none;">
-                            <h4>Active Systems Highlighted</h4>
-                            <p id="vis-desc" style="font-family: var(--font-mono); font-size: 0.9rem; margin-top: 0.5rem;"></p>
-                            <ul style="list-style: none; margin-top: 1rem; font-size: 0.85rem;">
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; margin-right: 5px;"></span> High Stress (Active)</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; margin-right: 5px;"></span> Moderate Stress</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #22c55e; margin-right: 5px;"></span> Recovering</li>
+                        <div class="result-card mt-1" id="vis-details" style="display:none; background: #111827; color: #e5e7eb; border: 1px solid #374151;">
+                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">System Diagnostics</h4>
+                            <p id="vis-desc" style="font-family: var(--font-mono); font-size: 0.9rem; margin-top: 0.5rem; color: #34d399;"></p>
+
+                            <h5 style="color: #9ca3af; margin-top: 1rem; font-family: var(--font-mono);">Recommended Modalities:</h5>
+                            <ul id="vis-equipment" style="list-style: none; margin-top: 0.5rem; font-size: 0.85rem; padding-left: 10px; border-left: 2px solid #3b82f6;">
+                            </ul>
+
+                            <ul style="list-style: none; margin-top: 1rem; font-size: 0.85rem; padding-top: 1rem; border-top: 1px solid #374151;">
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; box-shadow: 0 0 5px #ef4444; margin-right: 5px;"></span> Primary Mover (High Stress)</li>
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; box-shadow: 0 0 5px #3b82f6; margin-right: 5px;"></span> Synergist (Moderate Stress)</li>
+                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; margin-right: 5px;"></span> Tissue Regeneration (Recovery)</li>
                             </ul>
                         </div>
                     </div>
-                    <div class="canvas-container" style="background-color: #000; border: 2px solid #333;">
-                        <canvas id="anatomy-canvas" width="300" height="500"></canvas>
+                    <div id="webgl-container" style="background-color: #0a0a0c; border: 2px solid #1f2937; min-height: 500px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: grab;">
+                        <!-- WebGL Canvas Injected Here -->
+                        <div id="webgl-overlay" style="position: absolute; top: 10px; left: 10px; color: #10b981; font-family: 'Courier New', monospace; font-size: 12px; pointer-events: none; text-shadow: 0 0 5px rgba(16, 185, 129, 0.5);">
+                            SYS.OPT: ONLINE<br>
+                            RENDER: WebGL_PolyMesh_v2<br>
+                            ORBIT: Active
+                        </div>
                     </div>
                 </div>
             </div>
@@ -199,11 +229,27 @@
             </div>
         </section>
 
+        <!-- Academic Bibliography -->
+        <section id="bibliography" class="module" style="display: none;">
+            <header class="module-header">
+                <h2>Academic Bibliography & Engine Mechanisms</h2>
+                <p>Scientific literature underpinning the Anatomica OS calculations.</p>
+            </header>
+            <div class="module-content">
+                <ul style="list-style-type: square; padding-left: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <li style="margin-bottom: 0.5rem;"><strong>Mifflin-St Jeor Equation:</strong> Mifflin, M. D., et al. (1990). A new predictive equation for resting energy expenditure in healthy individuals. <em>The American Journal of Clinical Nutrition</em>, 51(2), 241-247.</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Tri-Phasic Rest Protocols:</strong> Zatsiorsky, V. M., & Kraemer, W. J. (2006). <em>Science and Practice of Strength Training</em>. Human Kinetics. (Basis for 24-72h recovery periods based on CNS vs structural loads).</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Weight Loss Satiety & Protein Leverage:</strong> Simpson, S. J., & Raubenheimer, D. (2005). Obesity: the protein leverage hypothesis. <em>Obesity Reviews</em>, 6(2), 133-142. (Utilized for low-calorie, high-protein food combining).</li>
+                    <li style="margin-bottom: 0.5rem;"><strong>Micronutrient Synergies (The Juicer):</strong> Combs, G. F., & McClung, J. P. (2016). <em>The Vitamins: Fundamental Aspects in Nutrition and Health</em>. Academic Press. (Mechanism for Vitamin D3 + Fat absorption, Calcium + Fortified Dairy deficits).</li>
+                </ul>
+            </div>
+        </section>
+
         <!-- The Juicer Translator (Micronutrient Module) -->
         <section id="juicer" class="module" style="display: none;">
             <header class="module-header">
-                <h2>The Juicer Translator</h2>
-                <p>Micronutrient gap analysis and targeted restorative recipes.</p>
+                <h2>The Juicer Translator & Supplement Synthesis</h2>
+                <p>Micronutrient gap analysis, cellular mechanisms, and targeted restorative recipes.</p>
             </header>
             <div class="module-content" id="juicer-content">
                 <div class="grid-2">
@@ -211,10 +257,19 @@
                         <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Dietary Assessment</h3>
                         <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select foods commonly missing from your diet to identify potential micronutrient deficits.</p>
 
+                        <div id="juicer-baseline-req" class="result-card mb-1" style="background: #111827; color: #f9fafb; display: none;">
+                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">Daily Micronutrient Thresholds</h4>
+                            <p style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.5rem;">Adjusted for protocol intensity and estimated basal metabolic sweat loss.</p>
+                            <ul id="juicer-daily-reqs" style="list-style: none; padding-left: 0; font-family: var(--font-mono); font-size: 0.85rem; margin-top: 0.5rem; color: #34d399;">
+                            </ul>
+                        </div>
+
                         <form id="juicer-form" class="clinical-form">
                             <div class="form-group">
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-citrus" class="juicer-checkbox"> Missing Citrus Fruits (Oranges, Lemons)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-citrus" class="juicer-checkbox"> Missing Citrus (Oranges, Lemons)</label>
                                 <label style="font-weight:normal;"><input type="checkbox" id="miss-leafy" class="juicer-checkbox"> Missing Leafy Greens (Spinach, Kale)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-nuts" class="juicer-checkbox"> Missing Nuts & Seeds (Almonds, Pumpkin Seeds)</label>
+                                <label style="font-weight:normal;"><input type="checkbox" id="miss-tubers" class="juicer-checkbox"> Missing Tubers/Potassium (Bananas, Potatoes)</label>
                                 <label style="font-weight:normal;"><input type="checkbox" id="miss-dairy" class="juicer-checkbox"> Missing Dairy (Milk, Yogurt)</label>
                                 <label style="font-weight:normal;"><input type="checkbox" id="miss-meat" class="juicer-checkbox"> Missing Red Meat (Beef, Liver)</label>
                                 <label style="font-weight:normal;"><input type="checkbox" id="miss-sun" class="juicer-checkbox"> Lack of Sun Exposure</label>

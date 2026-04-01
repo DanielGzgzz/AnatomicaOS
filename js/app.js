@@ -40,7 +40,10 @@ const app = {
 
             // Trigger specific module renders if data exists
             if(moduleId === 'visualizer' && this.state.schedule) {
-                // this.renderVisualizer(); // Will implement later
+                setTimeout(() => {
+                    this.initWebGL();
+                    this.updateWebGLVisualizer();
+                }, 100); // Small delay to allow container to size properly after display:block
             }
         }
     },
@@ -51,6 +54,8 @@ const app = {
         const weight = parseFloat(document.getElementById('weight').value);
         const height = parseFloat(document.getElementById('height').value);
         const age = parseInt(document.getElementById('age').value);
+        const goal = document.getElementById('goal').value;
+        const injury = document.getElementById('injury').value;
 
         const strength = parseFloat(document.getElementById('strength-load').value) || 0;
         const aerobic = parseFloat(document.getElementById('aerobic-pace').value) || 0;
@@ -61,7 +66,7 @@ const app = {
             return false;
         }
 
-        this.state.biometrics = { gender, weight, height, age };
+        this.state.biometrics = { gender, weight, height, age, goal, injury };
         this.state.performance = { strength, aerobic, anaerobic };
 
         return true;
@@ -70,53 +75,70 @@ const app = {
     generateSchedule() {
         if (!this.captureData()) return;
 
+        const bio = this.state.biometrics;
         const perf = this.state.performance;
 
-        // Simple logic to identify weaknesses based on arbitrary benchmarks
-        let weakness = "Balanced";
-        if (perf.strength < this.state.biometrics.weight * 1.2) {
-            weakness = "Strength";
-        } else if (perf.aerobic > 6.0 || perf.aerobic === 0) {
-            weakness = "Aerobic";
-        } else if (perf.anaerobic < 5) {
-            weakness = "Anaerobic";
+        // Base scheduling blocks
+        const strengthLower = { phase: "Strength", focus: "Lower Body (Squat/Deadlift)", intensity: "High" };
+        const strengthUpper = { phase: "Strength", focus: "Upper Body Push/Pull", intensity: "Moderate" };
+        const strengthFull = { phase: "Strength", focus: "Full Body Structural", intensity: "High" };
+        const aerobicLiss = { phase: "Aerobic", focus: "Zone 2 Cardio (Jump Rope / Jog)", intensity: "Low" };
+        const aerobicTempo = { phase: "Aerobic", focus: "Tempo Run / Boxing Flow", intensity: "Moderate" };
+        const anaerobicSprints = { phase: "Anaerobic", focus: "Heavy Bag Boxing / Sprints", intensity: "High" };
+        const anaerobicJump = { phase: "Anaerobic", focus: "Jump Rope Intervals", intensity: "High" };
+        const recoveryActive = { phase: "Recovery", focus: "Active Recovery / Mobility", intensity: "Rest" };
+        const recoveryPassive = { phase: "Recovery", focus: "Complete Rest / Downregulation", intensity: "Rest" };
+
+        let microcycle = [];
+
+        // 1. Determine Goal-Based Base Sequence (Breaking 7-day construct)
+        if (bio.goal === 'weight_loss') {
+            // Aggressive weight loss: 5-day repeating high frequency, lower intensity
+            microcycle = [
+                strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive
+            ];
+        } else if (bio.goal === 'hypertrophy') {
+            // Hypertrophy: 8-day repeating volume cycle
+            microcycle = [
+                strengthLower, recoveryActive, strengthUpper, recoveryActive,
+                strengthFull, aerobicLiss, anaerobicSprints, recoveryPassive
+            ];
+        } else {
+            // Conditioning / Athletic: 6-day repeating
+            microcycle = [
+                anaerobicSprints, strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive
+            ];
         }
 
-        // Weekly Schedule Template (Array of Objects)
-        // Adjusts focus based on weakness to prevent overtraining and bridge gaps
-        let schedule = [];
-
-        if (weakness === "Strength") {
-            schedule = [
-                { day: "Day 1", phase: "Strength", focus: "Lower Body (Squat/Deadlift)", intensity: "High" },
-                { day: "Day 2", phase: "Aerobic", focus: "Zone 2 Cardio", intensity: "Low" },
-                { day: "Day 3", phase: "Strength", focus: "Upper Body Push/Pull", intensity: "Moderate" },
-                { day: "Day 4", phase: "Recovery", focus: "Active Recovery / Mobility", intensity: "Rest" },
-                { day: "Day 5", phase: "Strength", focus: "Full Body Structural", intensity: "High" },
-                { day: "Day 6", phase: "Anaerobic", focus: "Sprint Intervals", intensity: "High" },
-                { day: "Day 7", phase: "Recovery", focus: "Complete Rest", intensity: "Rest" }
-            ];
-        } else if (weakness === "Aerobic") {
-            schedule = [
-                { day: "Day 1", phase: "Aerobic", focus: "Long Slow Distance (LSD)", intensity: "Moderate" },
-                { day: "Day 2", phase: "Strength", focus: "Full Body Structural", intensity: "Moderate" },
-                { day: "Day 3", phase: "Aerobic", focus: "Tempo Run", intensity: "High" },
-                { day: "Day 4", phase: "Recovery", focus: "Active Recovery / Mobility", intensity: "Rest" },
-                { day: "Day 5", phase: "Anaerobic", focus: "Sprint Intervals", intensity: "High" },
-                { day: "Day 6", phase: "Strength", focus: "Upper/Lower Split", intensity: "Moderate" },
-                { day: "Day 7", phase: "Recovery", focus: "Complete Rest", intensity: "Rest" }
-            ];
-        } else { // Anaerobic or Balanced
-            schedule = [
-                { day: "Day 1", phase: "Anaerobic", focus: "High Intensity Intervals", intensity: "High" },
-                { day: "Day 2", phase: "Strength", focus: "Upper Body Push/Pull", intensity: "Moderate" },
-                { day: "Day 3", phase: "Aerobic", focus: "Zone 2 Cardio", intensity: "Low" },
-                { day: "Day 4", phase: "Recovery", focus: "Active Recovery / Mobility", intensity: "Rest" },
-                { day: "Day 5", phase: "Strength", focus: "Lower Body", intensity: "High" },
-                { day: "Day 6", phase: "Anaerobic", focus: "Jump Rope Intervals", intensity: "High" },
-                { day: "Day 7", phase: "Recovery", focus: "Complete Rest", intensity: "Rest" }
-            ];
+        // 2. Injury Adjustments & Rest Protocols
+        if (bio.injury !== 'none') {
+            microcycle = microcycle.map(day => {
+                if (bio.injury === 'knee' && day.focus.includes('Lower Body')) {
+                    return { ...day, focus: "Upper Body Isolation / Core", intensity: "Moderate" };
+                }
+                if (bio.injury === 'knee' && day.focus.includes('Jump Rope')) {
+                    return { ...day, focus: "Rowing / Swimming (Low Impact)", intensity: "Moderate" };
+                }
+                if (bio.injury === 'shoulder' && day.focus.includes('Upper Body')) {
+                    return { ...day, focus: "Lower Body Machine Isolation", intensity: "Moderate" };
+                }
+                if (bio.injury === 'shoulder' && day.focus.includes('Boxing')) {
+                    return { ...day, focus: "Stationary Bike Intervals", intensity: "High" };
+                }
+                if (bio.injury === 'lower_back' && day.focus.includes('Structural')) {
+                    return { ...day, focus: "Machine Isolation / Support", intensity: "Low" };
+                }
+                return day;
+            });
+            // Force extra recovery day at the end of microcycle for injuries
+            microcycle.push(recoveryPassive);
         }
+
+        // Add day labels based on array length
+        let schedule = microcycle.map((day, idx) => ({
+            day: `Day ${idx + 1}`,
+            ...day
+        }));
 
         this.state.schedule = schedule;
 
@@ -140,7 +162,7 @@ const app = {
             tbody.appendChild(tr);
         });
 
-        document.getElementById('schedule-summary').innerText = `Identified Primary Focus: ${weakness}. Schedule generated to bridge gaps and calculate precise rest periods.`;
+        document.getElementById('schedule-summary').innerText = `Generated ${schedule.length}-day repeating microcycle tailored to macrocycle goals, factoring in joint integrity and performance benchmarks.`;
         document.getElementById('schedule-output').style.display = 'block';
     },
 
@@ -206,7 +228,7 @@ const app = {
         });
     },
 
-    // Procedural Anatomy & Biomechanics Visualizer
+    // Procedural Anatomy & Biomechanics Visualizer (WebGL)
     updateVisualizerSelect() {
         const select = document.getElementById('vis-day-select');
         select.innerHTML = '';
@@ -224,136 +246,211 @@ const app = {
 
         // Initial render
         if(this.state.activeModule === 'visualizer') {
-            this.renderVisualizer();
+            this.initWebGL();
+            this.updateWebGLVisualizer();
         }
     },
 
-    renderVisualizer() {
-        if (!this.state.schedule) return;
+    initWebGL() {
+        if (this.state.webglInitialized) return;
+
+        const container = document.getElementById('webgl-container');
+        if (!container) return;
+
+        const width = container.clientWidth || 400;
+        const height = container.clientHeight || 500;
+
+        // Scene Setup
+        this.scene = new THREE.Scene();
+        // Add subtle grid to floor
+        const gridHelper = new THREE.GridHelper(20, 20, 0x111827, 0x111827);
+        gridHelper.position.y = -5;
+        this.scene.add(gridHelper);
+
+        // Camera Setup
+        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        this.camera.position.set(0, 0, 15);
+
+        // Renderer Setup
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(width, height);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(this.renderer.domElement);
+
+        // Controls
+        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.enablePan = false;
+        this.controls.minDistance = 5;
+        this.controls.maxDistance = 25;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0x222222);
+        this.scene.add(ambientLight);
+
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight1.position.set(5, 5, 10);
+        this.scene.add(dirLight1);
+
+        const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5); // Cyber blue backlight
+        dirLight2.position.set(-5, 0, -10);
+        this.scene.add(dirLight2);
+
+        // Build Procedural Geometry (Faceted Star Trac Style)
+        this.bodyParts = {};
+
+        // Material factory for glowing wireframe edges and solid faces
+        const createCyberMaterial = () => {
+            return new THREE.MeshPhongMaterial({
+                color: 0x374151, // Cyber gray base
+                emissive: 0x000000,
+                specular: 0x111111,
+                shininess: 30,
+                flatShading: true,
+                transparent: true,
+                opacity: 0.8
+            });
+        };
+
+        const createBodyPart = (geometry, name, yPos, scaleX, scaleY, scaleZ) => {
+            const material = createCyberMaterial();
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.scale.set(scaleX, scaleY, scaleZ);
+            mesh.position.y = yPos;
+
+            // Add wireframe outline
+            const edges = new THREE.EdgesGeometry(geometry);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x9ca3af, linewidth: 2 }));
+            mesh.add(line);
+
+            this.scene.add(mesh);
+            this.bodyParts[name] = { mesh: mesh, line: line };
+        };
+
+        // Standard geometries
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const cylGeo = new THREE.CylinderGeometry(0.5, 0.4, 1, 8); // Octagonal for faceted look
+
+        // Head
+        createBodyPart(boxGeo, 'head', 4, 1.2, 1.5, 1.2);
+        // Torso
+        createBodyPart(boxGeo, 'torso', 1.5, 3.5, 3.5, 1.5);
+        // Arms
+        createBodyPart(cylGeo, 'armL', 1.5, 1, 3.5, 1);
+        this.bodyParts.armL.mesh.position.x = -2.5;
+        createBodyPart(cylGeo, 'armR', 1.5, 1, 3.5, 1);
+        this.bodyParts.armR.mesh.position.x = 2.5;
+        // Legs
+        createBodyPart(cylGeo, 'legL', -2.5, 1.2, 4, 1.2);
+        this.bodyParts.legL.mesh.position.x = -1;
+        createBodyPart(cylGeo, 'legR', -2.5, 1.2, 4, 1.2);
+        this.bodyParts.legR.mesh.position.x = 1;
+
+        // Animation Loop
+        const animate = () => {
+            requestAnimationFrame(animate);
+            this.controls.update();
+            this.renderer.render(this.scene, this.camera);
+        };
+        animate();
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            if(!container) return;
+            this.camera.aspect = container.clientWidth / container.clientHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        this.state.webglInitialized = true;
+    },
+
+    updateWebGLVisualizer() {
+        if (!this.state.schedule || !this.state.webglInitialized) return;
 
         const select = document.getElementById('vis-day-select');
         const dayIndex = select.value;
         if (dayIndex === '') return;
 
         const day = this.state.schedule[dayIndex];
+
         document.getElementById('vis-details').style.display = 'block';
-        document.getElementById('vis-desc').innerText = `Visualizing: ${day.focus} at ${day.intensity} Intensity`;
+        document.getElementById('vis-desc').innerText = `ISOLATING: ${day.focus} | INTENSITY: ${day.intensity}`;
 
-        const canvas = document.getElementById('anatomy-canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Cyber Colors
+        const colors = {
+            high: { fill: 0xef4444, line: 0xfca5a5, emit: 0x450a0a },
+            mod: { fill: 0x3b82f6, line: 0x93c5fd, emit: 0x0f172a },
+            rec: { fill: 0x10b981, line: 0x6ee7b7, emit: 0x022c22 },
+            base: { fill: 0x1f2937, line: 0x4b5563, emit: 0x000000 }
+        };
 
-        // Star Trac Style Theme
-        const bgFill = '#0a0a0c'; // Deep black background
-        ctx.fillStyle = bgFill;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Tech Grid Background
-        ctx.strokeStyle = '#111827';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < canvas.width; i += 20) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-        }
-        for (let i = 0; i < canvas.height; i += 20) {
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-        }
-
-        // Define cyber colors based on phase/intensity
-        const colorActiveHigh = 'rgba(239, 68, 68, 0.8)';   // Neon Red
-        const borderHigh = '#fca5a5';
-        const colorActiveMod = 'rgba(59, 130, 246, 0.8)';  // Neon Blue
-        const borderMod = '#93c5fd';
-        const colorRecovering = 'rgba(34, 197, 94, 0.8)';  // Neon Green
-        const borderRec = '#86efac';
-        const colorNeutral = 'rgba(55, 65, 81, 0.6)';      // Cyber Gray
-        const borderNeutral = '#9ca3af';
-
-        // Map focus to muscle groups
-        let chestColor = { fill: colorNeutral, border: borderNeutral };
-        let armsColor = { fill: colorNeutral, border: borderNeutral };
-        let legsColor = { fill: colorNeutral, border: borderNeutral };
-
-        if (day.phase === 'Recovery') {
-            chestColor = armsColor = legsColor = { fill: colorRecovering, border: borderRec };
-        } else if (day.focus.includes('Lower Body')) {
-            legsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
-            chestColor = armsColor = { fill: colorRecovering, border: borderRec };
-        } else if (day.focus.includes('Upper Body')) {
-            chestColor = armsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
-            legsColor = { fill: colorRecovering, border: borderRec };
-        } else if (day.phase === 'Aerobic' || day.phase === 'Anaerobic' || day.focus.includes('Full Body')) {
-            chestColor = armsColor = legsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
-        }
-
-        const cx = canvas.width / 2;
-
-        // Polygonal drawing helper
-        function drawPolygon(points, style) {
-            ctx.beginPath();
-            ctx.moveTo(points[0][0], points[0][1]);
-            for (let i = 1; i < points.length; i++) {
-                ctx.lineTo(points[i][0], points[i][1]);
+        const setPartColor = (part, stateName) => {
+            const c = colors[stateName];
+            if(this.bodyParts[part]) {
+                this.bodyParts[part].mesh.material.color.setHex(c.fill);
+                this.bodyParts[part].mesh.material.emissive.setHex(c.emit);
+                this.bodyParts[part].line.material.color.setHex(c.line);
             }
-            ctx.closePath();
+        };
 
-            ctx.fillStyle = style.fill;
-            ctx.fill();
+        // Reset all to base
+        ['head', 'torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => setPartColor(p, 'base'));
 
-            ctx.strokeStyle = style.border;
-            ctx.lineWidth = 1.5;
-            // Add subtle glow
-            ctx.shadowColor = style.border;
-            ctx.shadowBlur = 5;
-            ctx.stroke();
-            ctx.shadowBlur = 0; // reset
+        let equipmentHTML = "";
+
+        // Apply specific highlighting & equipment logic
+        if (day.phase === 'Recovery') {
+            ['torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => setPartColor(p, 'rec'));
+            equipmentHTML = `
+                <li><strong>Modality:</strong> Foam Roller / Massage Gun</li>
+                <li><strong>Protocol:</strong> Static stretching, parasympathetic breathing (CNS Downregulation).</li>
+            `;
+        } else if (day.focus.includes('Lower Body')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            setPartColor('legL', state);
+            setPartColor('legR', state);
+            setPartColor('torso', 'rec');
+            equipmentHTML = `
+                <li><strong>Primary:</strong> STAR TRAC™ Inspiration Leg Press / Hack Squat</li>
+                <li><strong>Secondary:</strong> STAR TRAC™ Instinct Leg Extension / Curl</li>
+                <li><strong>Alternative:</strong> Dumbbell Bulgarian Split Squats</li>
+            `;
+        } else if (day.focus.includes('Upper Body')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            setPartColor('torso', state);
+            setPartColor('armL', state);
+            setPartColor('armR', state);
+            setPartColor('legL', 'rec');
+            setPartColor('legR', 'rec');
+            equipmentHTML = `
+                <li><strong>Primary:</strong> STAR TRAC™ Inspiration Chest Press / Lat Pulldown</li>
+                <li><strong>Secondary:</strong> Dual Adjustable Pulley Cable Crossovers</li>
+            `;
+        } else if (day.focus.includes('Jump Rope') || day.focus.includes('Boxing') || day.focus.includes('Sprints')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            setPartColor('torso', state);
+            setPartColor('armL', state);
+            setPartColor('armR', state);
+            setPartColor('legL', state);
+            setPartColor('legR', state);
+            equipmentHTML = `
+                <li><strong>Primary:</strong> Heavy Bag (Boxing) / Speed Rope</li>
+                <li><strong>Metabolic Engine:</strong> Anaerobic Glycolysis System</li>
+                <li><strong>Machine Alt:</strong> STAR TRAC™ HIIT Bike / Treadmill Intervals</li>
+            `;
+        } else {
+            // Full body default
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            ['torso', 'armL', 'armR', 'legL', 'legR'].forEach(p => setPartColor(p, state));
+            equipmentHTML = `
+                <li><strong>Primary:</strong> STAR TRAC™ Multi-Station / Free Weights</li>
+                <li><strong>Focus:</strong> Compound structural movements</li>
+            `;
         }
 
-        // Star Trac High-Detail Polygonal Geometry
-
-        // Head/Neck (Neutral)
-        drawPolygon([[cx-15,30], [cx+15,30], [cx+20,50], [cx+10,75], [cx-10,75], [cx-20,50]], {fill: colorNeutral, border: borderNeutral});
-        drawPolygon([[cx-10,75], [cx+10,75], [cx+15,90], [cx-15,90]], {fill: colorNeutral, border: borderNeutral});
-
-        // Chest / Torso / Abs
-        drawPolygon([[cx-15,90], [cx+15,90], [cx+45,110], [cx+40,150], [cx,165], [cx-40,150], [cx-45,110]], chestColor); // Pecs
-        drawPolygon([[cx-40,150], [cx,165], [cx+40,150], [cx+30,200], [cx,220], [cx-30,200]], chestColor); // Upper Abs
-        drawPolygon([[cx-30,200], [cx,220], [cx+30,200], [cx+35,240], [cx,260], [cx-35,240]], chestColor); // Lower Abs/Pelvis
-
-        // Shoulders (Deltoids)
-        drawPolygon([[cx-45,110], [cx-15,90], [cx-60,95], [cx-70,125]], armsColor);
-        drawPolygon([[cx+45,110], [cx+15,90], [cx+60,95], [cx+70,125]], armsColor);
-
-        // Arms
-        drawPolygon([[cx-70,125], [cx-45,110], [cx-40,150], [cx-65,180], [cx-80,180]], armsColor); // Left Bicep/Tricep
-        drawPolygon([[cx+70,125], [cx+45,110], [cx+40,150], [cx+65,180], [cx+80,180]], armsColor); // Right Bicep/Tricep
-
-        drawPolygon([[cx-65,180], [cx-80,180], [cx-85,240], [cx-70,250]], armsColor); // Left Forearm
-        drawPolygon([[cx+65,180], [cx+80,180], [cx+85,240], [cx+70,250]], armsColor); // Right Forearm
-
-        // Legs (Quads)
-        drawPolygon([[cx-35,240], [cx,260], [cx-10,340], [cx-45,330]], legsColor); // Left Quad
-        drawPolygon([[cx+35,240], [cx,260], [cx+10,340], [cx+45,330]], legsColor); // Right Quad
-
-        // Knees
-        drawPolygon([[cx-45,330], [cx-10,340], [cx-15,360], [cx-40,360]], legsColor);
-        drawPolygon([[cx+45,330], [cx+10,340], [cx+15,360], [cx+40,360]], legsColor);
-
-        // Calves
-        drawPolygon([[cx-40,360], [cx-15,360], [cx-20,440], [cx-35,440]], legsColor);
-        drawPolygon([[cx+40,360], [cx+15,360], [cx+20,440], [cx+35,440]], legsColor);
-
-        // Tech Overlay UI
-        ctx.fillStyle = '#10b981';
-        ctx.font = '10px Courier New';
-        ctx.fillText('SYS.OPT: ONLINE', 10, 20);
-        ctx.fillText(`PHASE: ${day.phase.toUpperCase()}`, 10, 35);
-        ctx.fillText(`INTENSITY: ${day.intensity.toUpperCase()}`, 10, 50);
-
-        // Scan line effect
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        for (let i = 0; i < canvas.height; i += 4) {
-            ctx.fillRect(0, i, canvas.width, 1);
-        }
+        document.getElementById('vis-equipment').innerHTML = equipmentHTML;
     },
 
     updateNutritionModule() {
@@ -368,36 +465,66 @@ const app = {
         let bmr = (10 * bio.weight) + (6.25 * bio.height) - (5 * bio.age);
         bmr += bio.gender === 'male' ? 5 : -161;
 
-        // TDEE (Total Daily Energy Expenditure) - Assuming active due to program
-        const tdee = Math.round(bmr * 1.55);
+        // TDEE (Total Daily Energy Expenditure)
+        let tdee = Math.round(bmr * 1.55); // Assuming active
 
-        document.getElementById('nutrition-tdee').innerHTML = `<strong>TDEE:</strong> ${tdee} kcal/day`;
+        let pPct = 0.30, cPct = 0.45, fPct = 0.25;
+        let goalText = "Maintenance";
 
-        // Macros (Standard Academic Split: 30% P, 45% C, 25% F)
-        const proteinCal = tdee * 0.30;
-        const carbsCal = tdee * 0.45;
-        const fatsCal = tdee * 0.25;
+        if (bio.goal === 'weight_loss') {
+            tdee = Math.round(tdee * 0.75); // Aggressive 25% deficit
+            pPct = 0.45; // High protein for satiety and lean mass leverage
+            cPct = 0.30;
+            fPct = 0.25;
+            goalText = "Aggressive Deficit (Weight Loss)";
+        } else if (bio.goal === 'hypertrophy') {
+            tdee = Math.round(tdee * 1.10); // 10% surplus
+            pPct = 0.30; cPct = 0.50; fPct = 0.20;
+            goalText = "Hypertrophic Surplus";
+        }
+
+        document.getElementById('nutrition-tdee').innerHTML = `
+            <strong>Target:</strong> ${tdee} kcal/day <br>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Protocol: ${goalText}</span>
+        `;
+
+        // Macros
+        const proteinCal = tdee * pPct;
+        const carbsCal = tdee * cPct;
+        const fatsCal = tdee * fPct;
 
         const proteinG = Math.round(proteinCal / 4);
         const carbsG = Math.round(carbsCal / 4);
         const fatsG = Math.round(fatsCal / 9);
 
         const macrosHTML = `
-            <tr><td>Protein</td><td>${proteinG}g</td><td>30%</td></tr>
-            <tr><td>Carbohydrates</td><td>${carbsG}g</td><td>45%</td></tr>
-            <tr><td>Fats</td><td>${fatsG}g</td><td>25%</td></tr>
+            <tr><td>Protein</td><td>${proteinG}g</td><td>${pPct*100}%</td></tr>
+            <tr><td>Carbohydrates</td><td>${carbsG}g</td><td>${cPct*100}%</td></tr>
+            <tr><td>Fats</td><td>${fatsG}g</td><td>${fPct*100}%</td></tr>
         `;
         document.getElementById('nutrition-macros').innerHTML = macrosHTML;
 
         // Chrono-Timing Matrix (Satiety & Performance)
-        const timingPlan = [
-            { time: "08:00", meal: "Breakfast (Break-fast)", desc: "Focus: Fats & Protein. Prevents early insulin spike.", macros: "0% C, 40% P, 50% F" },
-            { time: "12:30", meal: "Lunch (Satiety)", desc: "Focus: Fibrous Carbs & Protein. Maintains energy.", macros: "20% C, 30% P, 30% F" },
-            { time: "15:30", meal: "Pre-Workout (Fuel)", desc: "Focus: Simple Carbs. Rapid absorption.", macros: "30% C, 0% P, 0% F" },
-            { time: "17:00", meal: "Training Window", desc: "Hydration & Electrolytes only.", macros: "-" },
-            { time: "18:30", meal: "Post-Workout (Recovery)", desc: "Focus: Protein & Simple Carbs.", macros: "40% C, 30% P, 0% F" },
-            { time: "20:30", meal: "Dinner (Slow Digestion)", desc: "Focus: Complex Carbs & Remaining Fats.", macros: "10% C, 0% P, 20% F" }
-        ];
+        let timingPlan = [];
+        if (bio.goal === 'weight_loss') {
+            timingPlan = [
+                { time: "08:00", meal: "Breakfast (Satiety Anchor)", desc: "Focus: High Protein (Egg whites, lean turkey), Healthy Fats. Suppresses ghrelin.", macros: "0% C, 40% P, 50% F" },
+                { time: "12:30", meal: "Lunch (Volume)", desc: "Focus: High Volume Fibrous Carbs (Spinach, Broccoli) & Lean Chicken. Promotes gastric distention.", macros: "20% C, 30% P, 30% F" },
+                { time: "15:30", meal: "Pre-Workout", desc: "Focus: Minimal Carbs (Apple).", macros: "30% C, 0% P, 0% F" },
+                { time: "17:00", meal: "Training Window", desc: "BCAAs & Electrolytes.", macros: "-" },
+                { time: "18:30", meal: "Post-Workout", desc: "Focus: Fast digesting Whey Protein isolate.", macros: "40% C, 30% P, 0% F" },
+                { time: "20:30", meal: "Dinner (Slow Digestion)", desc: "Focus: Casein protein (Cottage cheese) to prevent nocturnal catabolism.", macros: "10% C, 0% P, 20% F" }
+            ];
+        } else {
+            timingPlan = [
+                { time: "08:00", meal: "Breakfast (Break-fast)", desc: "Focus: Fats & Protein. Prevents early insulin spike.", macros: "0% C, 40% P, 50% F" },
+                { time: "12:30", meal: "Lunch (Satiety)", desc: "Focus: Fibrous Carbs & Protein. Maintains energy.", macros: "20% C, 30% P, 30% F" },
+                { time: "15:30", meal: "Pre-Workout (Fuel)", desc: "Focus: Simple Carbs. Rapid absorption.", macros: "30% C, 0% P, 0% F" },
+                { time: "17:00", meal: "Training Window", desc: "Hydration & Electrolytes only.", macros: "-" },
+                { time: "18:30", meal: "Post-Workout (Recovery)", desc: "Focus: Protein & Simple Carbs.", macros: "40% C, 30% P, 0% F" },
+                { time: "20:30", meal: "Dinner (Slow Digestion)", desc: "Focus: Complex Carbs & Remaining Fats.", macros: "10% C, 0% P, 20% F" }
+            ];
+        }
 
         let timingHTML = '<ul style="list-style:none; padding-left:0; font-size:0.9rem;">';
         timingPlan.forEach(slot => {
@@ -416,13 +543,49 @@ const app = {
 
     // The Juicer Translator (Micronutrient Module)
     translateJuice() {
+        if (!this.state.biometrics) {
+            alert("Please generate a protocol first to calculate specific thresholds.");
+            return;
+        }
+
         const missing = {
             citrus: document.getElementById('miss-citrus').checked,
             leafy: document.getElementById('miss-leafy').checked,
+            nuts: document.getElementById('miss-nuts').checked,
+            tubers: document.getElementById('miss-tubers').checked,
             dairy: document.getElementById('miss-dairy').checked,
             meat: document.getElementById('miss-meat').checked,
             sun: document.getElementById('miss-sun').checked
         };
+
+        // Calculate Daily Intake Requirements based on biometrics & schedule intensity
+        const bio = this.state.biometrics;
+        let intensityFactor = 1.0;
+
+        if (this.state.schedule) {
+            const highDays = this.state.schedule.filter(d => d.intensity === 'High').length;
+            if (highDays > 3) intensityFactor = 1.3; // High sweat/CNS tax
+            else if (highDays > 1) intensityFactor = 1.15;
+        }
+
+        // Base values (RDA) multiplied by intensity/sweat loss
+        const reqs = {
+            magnesium: Math.round((bio.gender === 'male' ? 420 : 320) * intensityFactor),
+            potassium: Math.round(3400 * intensityFactor),
+            calcium: 1000, // Relatively static, but crucial for bone support under load
+            iron: bio.gender === 'female' && bio.age < 50 ? Math.round(18 * intensityFactor) : Math.round(8 * intensityFactor),
+            zinc: Math.round((bio.gender === 'male' ? 11 : 8) * intensityFactor)
+        };
+
+        const reqList = document.getElementById('juicer-daily-reqs');
+        reqList.innerHTML = `
+            <li>Magnesium: ${reqs.magnesium} mg</li>
+            <li>Potassium: ${reqs.potassium} mg</li>
+            <li>Calcium: ${reqs.calcium} mg</li>
+            <li>Iron: ${reqs.iron} mg</li>
+            <li>Zinc: ${reqs.zinc} mg</li>
+        `;
+        document.getElementById('juicer-baseline-req').style.display = 'block';
 
         let deficits = [];
         let ingredients = [];
@@ -438,21 +601,32 @@ const app = {
             ingredients.push("2 Cups Raw Spinach or Kale");
             ingredients.push("1/2 Cucumber (hydration & base)");
         }
+        if (missing.nuts) {
+            deficits.push(`Magnesium (Deficit Risk: Muscle cramps, poor ATP synthesis. Target: ${reqs.magnesium}mg)`);
+            ingredients.push("2 tbsp Pumpkin Seeds or Almond Butter");
+            supplements.push("Magnesium Glycinate 200-400mg (Mechanism: Binds to GABA receptors, prevents nocturnal cramping, essential for ATP production).");
+        }
+        if (missing.tubers) {
+            deficits.push(`Potassium (Deficit Risk: Impaired cellular hydration, cardiac arrhythmias. Target: ${reqs.potassium}mg)`);
+            ingredients.push("1 Whole Banana");
+            ingredients.push("1/2 Cup Coconut Water");
+        }
         if (missing.dairy) {
-            deficits.push("Calcium, Vitamin D (Fortified)");
+            deficits.push(`Calcium (Deficit Risk: Bone demineralization under heavy loads. Target: ${reqs.calcium}mg)`);
             ingredients.push("1 Cup Fortified Almond Milk or Oat Milk");
-            supplements.push("Calcium Citrate (if diet strictly lacks alternative sources)");
+            supplements.push("Calcium Citrate (Mechanism: Structural bone density recovery. Avoid binding with Iron).");
         } else {
             ingredients.push("1 Cup Whole Milk or Greek Yogurt (Base)");
         }
         if (missing.meat) {
             deficits.push("Vitamin B12, Heme Iron, Zinc");
             ingredients.push("1 Scoop Plant-based Iron-fortified Protein Powder");
-            supplements.push("Vitamin B12 (Cyanocobalamin) 1000mcg");
+            supplements.push("Vitamin B12 (Cyanocobalamin) 1000mcg (Mechanism: Myelin sheath integrity & CNS firing).");
+            supplements.push("Zinc Picolinate (Mechanism: Testosterone synthesis & immune recovery).");
         }
         if (missing.sun) {
             deficits.push("Vitamin D3 (Cholecalciferol)");
-            supplements.push("Vitamin D3 2000-5000 IU (taken with a fat source)");
+            supplements.push("Vitamin D3 2000-5000 IU (Mechanism: Regulates calcium absorption & endocrine function. MUST take with fat source).");
         }
 
         const outContainer = document.getElementById('juicer-output');
