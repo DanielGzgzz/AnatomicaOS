@@ -88,6 +88,10 @@ const app = {
         const anaerobicJump = { phase: "Anaerobic", focus: "Jump Rope Intervals", intensity: "High" };
         const recoveryActive = { phase: "Recovery", focus: "Active Recovery / Mobility", intensity: "Rest" };
         const recoveryPassive = { phase: "Recovery", focus: "Complete Rest / Downregulation", intensity: "Rest" };
+        const caliUpper = { phase: "Strength", focus: "Upper Body Calisthenics (Pull-ups/Dips)", intensity: "High" };
+        const caliCore = { phase: "Strength", focus: "Core / Gymnastic Rings", intensity: "High" };
+        const powerMax = { phase: "Strength", focus: "Maximal Output (Bench/Squat/Deadlift 1RM-3RM)", intensity: "High" };
+        const powerAccessory = { phase: "Strength", focus: "Powerlifting Accessory Blocks", intensity: "Moderate" };
 
         let microcycle = [];
 
@@ -102,6 +106,17 @@ const app = {
             microcycle = [
                 strengthLower, recoveryActive, strengthUpper, recoveryActive,
                 strengthFull, aerobicLiss, anaerobicSprints, recoveryPassive
+            ];
+        } else if (bio.goal === 'calisthenics') {
+            // Calisthenics: 6-day repeating skill & strength
+            microcycle = [
+                caliUpper, caliCore, strengthLower, aerobicLiss, caliUpper, recoveryActive
+            ];
+        } else if (bio.goal === 'powerlifting') {
+            // Powerlifting: 7-day CNS focused cycle
+            microcycle = [
+                powerMax, recoveryActive, powerAccessory, recoveryPassive,
+                powerMax, powerAccessory, recoveryPassive
             ];
         } else {
             // Conditioning / Athletic: 6-day repeating
@@ -262,22 +277,18 @@ const app = {
 
         // Scene Setup
         this.scene = new THREE.Scene();
-        // Add subtle grid to floor
         const gridHelper = new THREE.GridHelper(20, 20, 0x111827, 0x111827);
         gridHelper.position.y = -5;
         this.scene.add(gridHelper);
 
-        // Camera Setup
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-        this.camera.position.set(0, 0, 15);
+        this.camera.position.set(0, 0, 18);
 
-        // Renderer Setup
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         container.appendChild(this.renderer.domElement);
 
-        // Controls
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
@@ -285,50 +296,42 @@ const app = {
         this.controls.minDistance = 5;
         this.controls.maxDistance = 25;
 
-        // Lights
-        const ambientLight = new THREE.AmbientLight(0x222222);
+        const ambientLight = new THREE.AmbientLight(0x444444);
         this.scene.add(ambientLight);
 
         const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight1.position.set(5, 5, 10);
         this.scene.add(dirLight1);
 
-        const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5); // Cyber blue backlight
+        const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5);
         dirLight2.position.set(-5, 0, -10);
         this.scene.add(dirLight2);
 
-        // Build Procedural Geometry (Faceted Star Trac Style)
         this.bodyParts = {};
+        this.bones = {};
 
-        // Material factory for glowing wireframe edges and solid faces
         const createCyberMaterial = () => {
             return new THREE.MeshPhongMaterial({
-                color: 0x374151, // Cyber gray base
+                color: 0x374151,
                 emissive: 0x000000,
                 specular: 0x111111,
                 shininess: 30,
                 flatShading: true,
                 transparent: true,
-                opacity: 0.8
+                opacity: 0.65 // More transparent to see skeleton
             });
         };
 
-        const createBodyPart = (geometry, name, yPos, scaleX, scaleY, scaleZ) => {
-            const material = createCyberMaterial();
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.scale.set(scaleX, scaleY, scaleZ);
-            mesh.position.y = yPos;
-
-            // Add wireframe outline
-            const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x9ca3af, linewidth: 2 }));
-            mesh.add(line);
-
-            this.scene.add(mesh);
-            this.bodyParts[name] = { mesh: mesh, line: line };
+        const createBoneMaterial = () => {
+            return new THREE.MeshPhongMaterial({
+                color: 0xd1d5db, // Bone white/gray
+                emissive: 0x111111,
+                specular: 0x222222,
+                shininess: 10,
+                flatShading: true
+            });
         };
 
-        // Helper to create detailed positioned muscles
         const createMuscle = (geo, name, x, y, z, sx, sy, sz, rx=0, ry=0, rz=0) => {
             const material = createCyberMaterial();
             const mesh = new THREE.Mesh(geo, material);
@@ -344,85 +347,169 @@ const app = {
             this.bodyParts[name] = { mesh: mesh, line: line };
         };
 
-        // Geometries for detailed faceted look (low poly spheres/cylinders act as muscle bellies)
-        const polyGeo = new THREE.IcosahedronGeometry(1, 1); // Low poly faceted sphere
-        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 6); // Hexagonal cylinder
+        const createBone = (geo, name, x, y, z, sx, sy, sz, rx=0, ry=0, rz=0) => {
+            const material = createBoneMaterial();
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.scale.set(sx, sy, sz);
+            mesh.position.set(x, y, z);
+            mesh.rotation.set(rx, ry, rz);
 
-        // 1. Head & Neck
-        createMuscle(polyGeo, 'head', 0, 7.5, 0, 1.2, 1.5, 1.3);
-        createMuscle(cylGeo, 'neck', 0, 6.2, 0, 1.0, 1.5, 1.0);
-        createMuscle(polyGeo, 'traps_l', -1.2, 5.8, -0.2, 1.5, 0.8, 0.8, 0, 0, 0.5);
-        createMuscle(polyGeo, 'traps_r', 1.2, 5.8, -0.2, 1.5, 0.8, 0.8, 0, 0, -0.5);
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x6b7280, linewidth: 1 }));
+            mesh.add(line);
 
-        // 2. Torso (Front)
-        createMuscle(polyGeo, 'pec_l', -1.1, 4.5, 0.8, 1.4, 1.2, 0.5, 0.2, -0.2, 0);
-        createMuscle(polyGeo, 'pec_r', 1.1, 4.5, 0.8, 1.4, 1.2, 0.5, 0.2, 0.2, 0);
+            this.scene.add(mesh);
+            this.bones[name] = { mesh: mesh, line: line };
+        };
 
-        // Abs (6-pack)
-        createMuscle(polyGeo, 'abs_1l', -0.5, 3.5, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_1r', 0.5, 3.5, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_2l', -0.5, 2.7, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_2r', 0.5, 2.7, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_3l', -0.5, 1.9, 0.8, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_3r', 0.5, 1.9, 0.8, 0.6, 0.6, 0.3);
+        const polyGeo = new THREE.IcosahedronGeometry(1, 1);
+        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 6);
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
 
-        // Obliques
-        createMuscle(polyGeo, 'oblique_l', -1.5, 2.7, 0.5, 0.8, 1.5, 0.6, 0, 0, -0.2);
-        createMuscle(polyGeo, 'oblique_r', 1.5, 2.7, 0.5, 0.8, 1.5, 0.6, 0, 0, 0.2);
+        // --- SKELETON (Deep Layer) ---
+        // Skull & Jaw
+        createBone(polyGeo, 'cranium', 0, 7.6, 0.1, 1.0, 1.2, 1.1);
+        createBone(boxGeo, 'mandible', 0, 6.8, 0.3, 0.8, 0.4, 0.8, 0.2, 0, 0);
 
-        // 3. Torso (Back)
-        createMuscle(polyGeo, 'lat_l', -1.8, 3.5, -0.6, 1.2, 2.5, 0.6, 0.2, 0, 0.2);
-        createMuscle(polyGeo, 'lat_r', 1.8, 3.5, -0.6, 1.2, 2.5, 0.6, 0.2, 0, -0.2);
-        createMuscle(polyGeo, 'lower_back', 0, 2.0, -0.8, 1.5, 1.5, 0.5);
+        // Spine (Cervical, Thoracic, Lumbar)
+        createBone(cylGeo, 'cervical_spine', 0, 6.2, -0.2, 0.3, 1.2, 0.3);
+        createBone(cylGeo, 'thoracic_spine', 0, 4.0, -0.5, 0.4, 3.5, 0.4);
+        createBone(cylGeo, 'lumbar_spine', 0, 1.8, -0.2, 0.5, 1.5, 0.5);
 
-        // 4. Arms
-        // Shoulders (Deltoids)
-        createMuscle(polyGeo, 'delt_l', -2.8, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, 0.4);
-        createMuscle(polyGeo, 'delt_r', 2.8, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, -0.4);
+        // Ribcage & Sternum
+        createBone(polyGeo, 'ribcage', 0, 4.0, 0.2, 1.4, 2.0, 1.2, 0.1, 0, 0);
+        createBone(boxGeo, 'sternum', 0, 4.2, 1.4, 0.3, 1.5, 0.1, 0.1, 0, 0);
 
-        // Upper Arm (Bicep/Tricep)
-        createMuscle(cylGeo, 'bicep_l', -3.2, 3.5, 0.3, 0.8, 2.0, 0.8, 0, 0, 0.2);
-        createMuscle(cylGeo, 'bicep_r', 3.2, 3.5, 0.3, 0.8, 2.0, 0.8, 0, 0, -0.2);
-        createMuscle(cylGeo, 'tricep_l', -3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, 0.2);
-        createMuscle(cylGeo, 'tricep_r', 3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, -0.2);
+        // Clavicle & Scapula
+        createBone(cylGeo, 'clavicle_l', -1.0, 5.2, 1.0, 0.2, 1.5, 0.2, 0, 0, 1.5);
+        createBone(cylGeo, 'clavicle_r', 1.0, 5.2, 1.0, 0.2, 1.5, 0.2, 0, 0, -1.5);
+        createBone(boxGeo, 'scapula_l', -1.2, 4.5, -0.8, 0.8, 1.2, 0.2, 0.2, 0.3, 0.2);
+        createBone(boxGeo, 'scapula_r', 1.2, 4.5, -0.8, 0.8, 1.2, 0.2, 0.2, -0.3, -0.2);
 
-        // Forearms
-        createMuscle(cylGeo, 'forearm_l', -3.8, 1.5, 0.2, 0.7, 2.2, 0.6, 0, 0, 0.1);
-        createMuscle(cylGeo, 'forearm_r', 3.8, 1.5, 0.2, 0.7, 2.2, 0.6, 0, 0, -0.1);
+        // Arms (Humerus, Radius, Ulna, Carpals)
+        createBone(cylGeo, 'humerus_l', -2.8, 3.5, 0, 0.3, 2.5, 0.3, 0, 0, 0.2);
+        createBone(cylGeo, 'humerus_r', 2.8, 3.5, 0, 0.3, 2.5, 0.3, 0, 0, -0.2);
+        createBone(cylGeo, 'radius_l', -3.5, 1.2, 0.1, 0.2, 2.0, 0.2, 0, 0, 0.1);
+        createBone(cylGeo, 'radius_r', 3.5, 1.2, 0.1, 0.2, 2.0, 0.2, 0, 0, -0.1);
+        createBone(cylGeo, 'ulna_l', -3.3, 1.2, -0.1, 0.2, 2.0, 0.2, 0, 0, 0.1);
+        createBone(cylGeo, 'ulna_r', 3.3, 1.2, -0.1, 0.2, 2.0, 0.2, 0, 0, -0.1);
+        createBone(boxGeo, 'carpals_l', -3.7, -0.2, 0, 0.4, 0.5, 0.2);
+        createBone(boxGeo, 'carpals_r', 3.7, -0.2, 0, 0.4, 0.5, 0.2);
 
-        // Hands
-        createMuscle(polyGeo, 'hand_l', -4.0, 0.0, 0.2, 0.5, 0.8, 0.3);
-        createMuscle(polyGeo, 'hand_r', 4.0, 0.0, 0.2, 0.5, 0.8, 0.3);
+        // Pelvis
+        createBone(polyGeo, 'pelvis_bone', 0, 0.4, 0, 1.6, 1.0, 1.0, 0.2, 0, 0);
 
-        // 5. Lower Body
-        // Glutes / Pelvis
-        createMuscle(polyGeo, 'glute_l', -1.0, 0.5, -0.8, 1.4, 1.4, 1.0, 0.2, 0, 0);
-        createMuscle(polyGeo, 'glute_r', 1.0, 0.5, -0.8, 1.4, 1.4, 1.0, 0.2, 0, 0);
-        createMuscle(polyGeo, 'pelvis', 0, 0.5, 0.4, 1.8, 1.2, 0.8);
+        // Legs (Femur, Patella, Tibia, Fibula, Tarsals)
+        createBone(cylGeo, 'femur_l', -1.0, -2.0, 0.2, 0.4, 3.5, 0.4, -0.1, 0, 0.1);
+        createBone(cylGeo, 'femur_r', 1.0, -2.0, 0.2, 0.4, 3.5, 0.4, -0.1, 0, -0.1);
+        createBone(polyGeo, 'patella_l', -1.1, -3.9, 0.6, 0.3, 0.3, 0.3);
+        createBone(polyGeo, 'patella_r', 1.1, -3.9, 0.6, 0.3, 0.3, 0.3);
+        createBone(cylGeo, 'tibia_l', -1.1, -5.8, 0.2, 0.35, 3.2, 0.35);
+        createBone(cylGeo, 'tibia_r', 1.1, -5.8, 0.2, 0.35, 3.2, 0.35);
+        createBone(cylGeo, 'fibula_l', -1.4, -5.8, 0.0, 0.2, 3.0, 0.2);
+        createBone(cylGeo, 'fibula_r', 1.4, -5.8, 0.0, 0.2, 3.0, 0.2);
+        createBone(boxGeo, 'tarsals_l', -1.2, -7.5, 0.4, 0.6, 0.4, 1.2);
+        createBone(boxGeo, 'tarsals_r', 1.2, -7.5, 0.4, 0.6, 0.4, 1.2);
 
-        // Thighs (Quads & Hamstrings)
-        createMuscle(cylGeo, 'quad_l', -1.2, -1.8, 0.4, 1.3, 3.5, 1.2, -0.1, 0, 0.05);
-        createMuscle(cylGeo, 'quad_r', 1.2, -1.8, 0.4, 1.3, 3.5, 1.2, -0.1, 0, -0.05);
-        createMuscle(cylGeo, 'ham_l', -1.2, -1.8, -0.4, 1.1, 3.5, 1.1, 0.1, 0, 0.05);
-        createMuscle(cylGeo, 'ham_r', 1.2, -1.8, -0.4, 1.1, 3.5, 1.1, 0.1, 0, -0.05);
+        // --- SUPERFICIAL & DEEP MUSCULATURE (Outer Layer) ---
+        // Neck & Head
+        createMuscle(polyGeo, 'scm_l', -0.5, 6.4, 0.5, 0.3, 0.8, 0.3, 0, 0, 0.3);
+        createMuscle(polyGeo, 'scm_r', 0.5, 6.4, 0.5, 0.3, 0.8, 0.3, 0, 0, -0.3);
 
-        // Knees
-        createMuscle(polyGeo, 'knee_l', -1.2, -3.8, 0.5, 0.7, 0.7, 0.6);
-        createMuscle(polyGeo, 'knee_r', 1.2, -3.8, 0.5, 0.7, 0.7, 0.6);
+        // Trapezius (Upper, Middle, Lower)
+        createMuscle(polyGeo, 'traps_upper_l', -1.0, 5.8, -0.2, 1.2, 0.6, 0.6, 0, 0, 0.5);
+        createMuscle(polyGeo, 'traps_upper_r', 1.0, 5.8, -0.2, 1.2, 0.6, 0.6, 0, 0, -0.5);
+        createMuscle(polyGeo, 'traps_mid', 0, 4.8, -0.7, 1.5, 1.0, 0.4);
+        createMuscle(polyGeo, 'traps_lower', 0, 3.8, -0.6, 0.8, 1.5, 0.3);
 
-        // Calves
-        createMuscle(cylGeo, 'calf_l', -1.2, -5.5, -0.2, 1.0, 2.8, 1.1);
-        createMuscle(cylGeo, 'calf_r', 1.2, -5.5, -0.2, 1.0, 2.8, 1.1);
+        // Back (Lats, Rhomboids, Teres, Erector Spinae)
+        createMuscle(polyGeo, 'lat_l', -1.6, 3.2, -0.5, 1.2, 2.4, 0.5, 0.1, 0, 0.2);
+        createMuscle(polyGeo, 'lat_r', 1.6, 3.2, -0.5, 1.2, 2.4, 0.5, 0.1, 0, -0.2);
+        createMuscle(polyGeo, 'teres_major_l', -1.8, 4.2, -0.6, 0.6, 0.8, 0.4, 0, 0, 0.3);
+        createMuscle(polyGeo, 'teres_major_r', 1.8, 4.2, -0.6, 0.6, 0.8, 0.4, 0, 0, -0.3);
+        createMuscle(polyGeo, 'infraspinatus_l', -1.2, 4.5, -0.9, 0.8, 0.8, 0.3, 0, 0, 0.1);
+        createMuscle(polyGeo, 'infraspinatus_r', 1.2, 4.5, -0.9, 0.8, 0.8, 0.3, 0, 0, -0.1);
+        createMuscle(cylGeo, 'erector_spinae_l', -0.4, 2.5, -0.6, 0.4, 3.0, 0.4);
+        createMuscle(cylGeo, 'erector_spinae_r', 0.4, 2.5, -0.6, 0.4, 3.0, 0.4);
 
-        // Shins (Tibialis)
-        createMuscle(cylGeo, 'shin_l', -1.2, -5.5, 0.3, 0.6, 2.8, 0.6);
-        createMuscle(cylGeo, 'shin_r', 1.2, -5.5, 0.3, 0.6, 2.8, 0.6);
+        // Chest (Pectoralis Major & Minor, Serratus)
+        createMuscle(polyGeo, 'pec_major_l', -1.0, 4.5, 1.0, 1.3, 1.0, 0.4, 0.1, -0.1, 0);
+        createMuscle(polyGeo, 'pec_major_r', 1.0, 4.5, 1.0, 1.3, 1.0, 0.4, 0.1, 0.1, 0);
+        createMuscle(polyGeo, 'serratus_l', -1.6, 3.5, 0.7, 0.5, 1.2, 0.5, 0, -0.2, 0.1);
+        createMuscle(polyGeo, 'serratus_r', 1.6, 3.5, 0.7, 0.5, 1.2, 0.5, 0, 0.2, -0.1);
 
-        // Feet
-        createMuscle(polyGeo, 'foot_l', -1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
-        createMuscle(polyGeo, 'foot_r', 1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
+        // Abdomen (Rectus Abdominis, Obliques, Transversus)
+        createMuscle(polyGeo, 'abs_1l', -0.4, 3.5, 1.1, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_1r', 0.4, 3.5, 1.1, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_2l', -0.4, 2.8, 1.1, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_2r', 0.4, 2.8, 1.1, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_3l', -0.4, 2.1, 1.0, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_3r', 0.4, 2.1, 1.0, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_4l', -0.4, 1.4, 0.9, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'abs_4r', 0.4, 1.4, 0.9, 0.5, 0.5, 0.3);
+        createMuscle(polyGeo, 'oblique_ext_l', -1.2, 2.4, 0.6, 0.8, 1.8, 0.6, 0, -0.1, -0.1);
+        createMuscle(polyGeo, 'oblique_ext_r', 1.2, 2.4, 0.6, 0.8, 1.8, 0.6, 0, 0.1, 0.1);
 
-        // Animation Loop
+        // Shoulders (Anterior, Lateral, Posterior Deltoids)
+        createMuscle(polyGeo, 'delt_ant_l', -2.2, 5.0, 0.5, 0.7, 1.0, 0.6, 0.2, 0, 0.3);
+        createMuscle(polyGeo, 'delt_ant_r', 2.2, 5.0, 0.5, 0.7, 1.0, 0.6, 0.2, 0, -0.3);
+        createMuscle(polyGeo, 'delt_lat_l', -2.6, 4.9, 0, 0.7, 1.0, 0.7, 0, 0, 0.4);
+        createMuscle(polyGeo, 'delt_lat_r', 2.6, 4.9, 0, 0.7, 1.0, 0.7, 0, 0, -0.4);
+        createMuscle(polyGeo, 'delt_post_l', -2.3, 4.9, -0.5, 0.7, 0.9, 0.6, -0.2, 0, 0.3);
+        createMuscle(polyGeo, 'delt_post_r', 2.3, 4.9, -0.5, 0.7, 0.9, 0.6, -0.2, 0, -0.3);
+
+        // Upper Arms (Biceps short/long, Brachialis, Triceps lateral/long/medial)
+        createMuscle(cylGeo, 'bicep_l', -3.0, 3.4, 0.4, 0.7, 1.8, 0.7, 0, 0, 0.2);
+        createMuscle(cylGeo, 'bicep_r', 3.0, 3.4, 0.4, 0.7, 1.8, 0.7, 0, 0, -0.2);
+        createMuscle(cylGeo, 'brachialis_l', -3.2, 2.6, 0.1, 0.6, 1.0, 0.6, 0, 0, 0.2);
+        createMuscle(cylGeo, 'brachialis_r', 3.2, 2.6, 0.1, 0.6, 1.0, 0.6, 0, 0, -0.2);
+        createMuscle(cylGeo, 'tricep_long_l', -2.8, 3.4, -0.4, 0.6, 2.0, 0.6, 0, 0, 0.2);
+        createMuscle(cylGeo, 'tricep_long_r', 2.8, 3.4, -0.4, 0.6, 2.0, 0.6, 0, 0, -0.2);
+        createMuscle(cylGeo, 'tricep_lat_l', -3.4, 3.6, -0.2, 0.6, 1.6, 0.6, 0, 0, 0.2);
+        createMuscle(cylGeo, 'tricep_lat_r', 3.4, 3.6, -0.2, 0.6, 1.6, 0.6, 0, 0, -0.2);
+
+        // Forearms (Brachioradialis, Flexors, Extensors)
+        createMuscle(cylGeo, 'brachioradialis_l', -3.6, 1.8, 0.3, 0.5, 1.5, 0.5, 0, 0, 0.1);
+        createMuscle(cylGeo, 'brachioradialis_r', 3.6, 1.8, 0.3, 0.5, 1.5, 0.5, 0, 0, -0.1);
+        createMuscle(cylGeo, 'flexors_l', -3.2, 1.0, 0.2, 0.6, 1.8, 0.5, 0, 0, 0.1);
+        createMuscle(cylGeo, 'flexors_r', 3.2, 1.0, 0.2, 0.6, 1.8, 0.5, 0, 0, -0.1);
+        createMuscle(cylGeo, 'extensors_l', -3.6, 1.0, -0.2, 0.5, 1.8, 0.5, 0, 0, 0.1);
+        createMuscle(cylGeo, 'extensors_r', 3.6, 1.0, -0.2, 0.5, 1.8, 0.5, 0, 0, -0.1);
+
+        // Pelvis & Glutes (Maximus, Medius)
+        createMuscle(polyGeo, 'glute_max_l', -0.9, 0.4, -1.0, 1.3, 1.3, 0.8, 0.2, 0, 0);
+        createMuscle(polyGeo, 'glute_max_r', 0.9, 0.4, -1.0, 1.3, 1.3, 0.8, 0.2, 0, 0);
+        createMuscle(polyGeo, 'glute_med_l', -1.5, 0.8, -0.5, 0.8, 1.0, 0.6, 0.1, 0, 0.2);
+        createMuscle(polyGeo, 'glute_med_r', 1.5, 0.8, -0.5, 0.8, 1.0, 0.6, 0.1, 0, -0.2);
+
+        // Thighs (Quads: Rectus Femoris, Vastus Lateralis/Medialis; Adductors, Sartorius)
+        createMuscle(cylGeo, 'rectus_femoris_l', -1.0, -1.8, 0.7, 0.8, 3.2, 0.8, -0.05, 0, 0.05);
+        createMuscle(cylGeo, 'rectus_femoris_r', 1.0, -1.8, 0.7, 0.8, 3.2, 0.8, -0.05, 0, -0.05);
+        createMuscle(cylGeo, 'vastus_lateralis_l', -1.6, -1.8, 0.4, 0.7, 3.3, 0.7, -0.05, 0, 0.1);
+        createMuscle(cylGeo, 'vastus_lateralis_r', 1.6, -1.8, 0.4, 0.7, 3.3, 0.7, -0.05, 0, -0.1);
+        createMuscle(cylGeo, 'vastus_medialis_l', -0.6, -2.4, 0.5, 0.6, 2.0, 0.6, -0.05, 0, -0.1);
+        createMuscle(cylGeo, 'vastus_medialis_r', 0.6, -2.4, 0.5, 0.6, 2.0, 0.6, -0.05, 0, 0.1);
+        createMuscle(cylGeo, 'adductor_l', -0.5, -1.2, 0.1, 0.6, 2.5, 0.6, 0, 0, -0.2);
+        createMuscle(cylGeo, 'adductor_r', 0.5, -1.2, 0.1, 0.6, 2.5, 0.6, 0, 0, 0.2);
+        createMuscle(cylGeo, 'sartorius_l', -0.8, -1.5, 0.6, 0.3, 3.6, 0.3, -0.1, 0.2, 0.15);
+        createMuscle(cylGeo, 'sartorius_r', 0.8, -1.5, 0.6, 0.3, 3.6, 0.3, -0.1, -0.2, -0.15);
+
+        // Hamstrings (Biceps Femoris, Semitendinosus)
+        createMuscle(cylGeo, 'biceps_femoris_l', -1.3, -1.8, -0.5, 0.7, 3.2, 0.7, 0.05, 0, 0.05);
+        createMuscle(cylGeo, 'biceps_femoris_r', 1.3, -1.8, -0.5, 0.7, 3.2, 0.7, 0.05, 0, -0.05);
+        createMuscle(cylGeo, 'semitendinosus_l', -0.7, -1.8, -0.5, 0.6, 3.2, 0.6, 0.05, 0, -0.05);
+        createMuscle(cylGeo, 'semitendinosus_r', 0.7, -1.8, -0.5, 0.6, 3.2, 0.6, 0.05, 0, 0.05);
+
+        // Lower Leg (Gastrocnemius Medial/Lateral, Soleus, Tibialis Anterior)
+        createMuscle(polyGeo, 'gastrocnemius_med_l', -0.8, -5.0, -0.4, 0.6, 1.5, 0.6, 0.1, 0, 0);
+        createMuscle(polyGeo, 'gastrocnemius_med_r', 0.8, -5.0, -0.4, 0.6, 1.5, 0.6, 0.1, 0, 0);
+        createMuscle(polyGeo, 'gastrocnemius_lat_l', -1.4, -5.0, -0.4, 0.5, 1.4, 0.5, 0.1, 0, 0);
+        createMuscle(polyGeo, 'gastrocnemius_lat_r', 1.4, -5.0, -0.4, 0.5, 1.4, 0.5, 0.1, 0, 0);
+        createMuscle(cylGeo, 'soleus_l', -1.1, -6.0, -0.3, 0.7, 2.0, 0.6);
+        createMuscle(cylGeo, 'soleus_r', 1.1, -6.0, -0.3, 0.7, 2.0, 0.6);
+        createMuscle(cylGeo, 'tibialis_ant_l', -1.3, -5.5, 0.4, 0.5, 2.5, 0.4);
+        createMuscle(cylGeo, 'tibialis_ant_r', 1.3, -5.5, 0.4, 0.5, 2.5, 0.4);
+
         const animate = () => {
             requestAnimationFrame(animate);
             this.controls.update();
@@ -430,7 +517,6 @@ const app = {
         };
         animate();
 
-        // Handle resize
         window.addEventListener('resize', () => {
             if(!container) return;
             this.camera.aspect = container.clientWidth / container.clientHeight;
@@ -453,12 +539,11 @@ const app = {
         document.getElementById('vis-details').style.display = 'block';
         document.getElementById('vis-desc').innerText = `ISOLATING: ${day.focus} | INTENSITY: ${day.intensity}`;
 
-        // Cyber Colors
         const colors = {
-            high: { fill: 0xef4444, line: 0xfca5a5, emit: 0x450a0a },
-            mod: { fill: 0x3b82f6, line: 0x93c5fd, emit: 0x0f172a },
-            rec: { fill: 0x10b981, line: 0x6ee7b7, emit: 0x022c22 },
-            base: { fill: 0x1f2937, line: 0x4b5563, emit: 0x000000 }
+            high: { fill: 0xef4444, line: 0xfca5a5, emit: 0x450a0a, op: 0.9 },
+            mod: { fill: 0x3b82f6, line: 0x93c5fd, emit: 0x0f172a, op: 0.8 },
+            rec: { fill: 0x10b981, line: 0x6ee7b7, emit: 0x022c22, op: 0.8 },
+            base: { fill: 0x374151, line: 0x9ca3af, emit: 0x000000, op: 0.4 } // Transparent base to see skeleton
         };
 
         const setPartColor = (part, stateName) => {
@@ -466,27 +551,31 @@ const app = {
             if(this.bodyParts[part]) {
                 this.bodyParts[part].mesh.material.color.setHex(c.fill);
                 this.bodyParts[part].mesh.material.emissive.setHex(c.emit);
+                this.bodyParts[part].mesh.material.opacity = c.op;
                 this.bodyParts[part].line.material.color.setHex(c.line);
             }
         };
 
-        // Muscle Groupings for Highlighting
-        const upperFront = ['pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'oblique_l', 'oblique_r'];
-        const upperBack = ['traps_l', 'traps_r', 'lat_l', 'lat_r', 'lower_back'];
-        const shoulders = ['delt_l', 'delt_r'];
-        const arms = ['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'forearm_l', 'forearm_r'];
-        const lowerFront = ['quad_l', 'quad_r', 'shin_l', 'shin_r'];
-        const lowerBack = ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'calf_l', 'calf_r'];
-        const joints = ['knee_l', 'knee_r', 'pelvis'];
+        // Muscle Groupings
+        const core = ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'abs_4l', 'abs_4r', 'oblique_ext_l', 'oblique_ext_r', 'erector_spinae_l', 'erector_spinae_r'];
+        const chest = ['pec_major_l', 'pec_major_r', 'serratus_l', 'serratus_r'];
+        const back = ['traps_upper_l', 'traps_upper_r', 'traps_mid', 'traps_lower', 'lat_l', 'lat_r', 'teres_major_l', 'teres_major_r', 'infraspinatus_l', 'infraspinatus_r'];
+        const shoulders = ['delt_ant_l', 'delt_ant_r', 'delt_lat_l', 'delt_lat_r', 'delt_post_l', 'delt_post_r'];
+        const armsFront = ['bicep_l', 'bicep_r', 'brachialis_l', 'brachialis_r', 'brachioradialis_l', 'brachioradialis_r', 'flexors_l', 'flexors_r'];
+        const armsBack = ['tricep_long_l', 'tricep_long_r', 'tricep_lat_l', 'tricep_lat_r', 'extensors_l', 'extensors_r'];
+        const glutes = ['glute_max_l', 'glute_max_r', 'glute_med_l', 'glute_med_r'];
+        const quads = ['rectus_femoris_l', 'rectus_femoris_r', 'vastus_lateralis_l', 'vastus_lateralis_r', 'vastus_medialis_l', 'vastus_medialis_r', 'sartorius_l', 'sartorius_r'];
+        const hamstrings = ['biceps_femoris_l', 'biceps_femoris_r', 'semitendinosus_l', 'semitendinosus_r'];
+        const adductors = ['adductor_l', 'adductor_r'];
+        const calves = ['gastrocnemius_med_l', 'gastrocnemius_med_r', 'gastrocnemius_lat_l', 'gastrocnemius_lat_r', 'soleus_l', 'soleus_r', 'tibialis_ant_l', 'tibialis_ant_r'];
 
-        const allMuscles = Object.keys(this.bodyParts).filter(k => k !== 'head' && k !== 'neck' && k !== 'hand_l' && k !== 'hand_r' && k !== 'foot_l' && k !== 'foot_r');
+        const allMuscles = Object.keys(this.bodyParts);
 
         // Reset all to base
-        Object.keys(this.bodyParts).forEach(p => setPartColor(p, 'base'));
+        allMuscles.forEach(p => setPartColor(p, 'base'));
 
         let equipmentHTML = "";
 
-        // Apply specific highlighting logic mapped to detailed muscle groups
         if (day.phase === 'Recovery') {
             allMuscles.forEach(p => setPartColor(p, 'rec'));
             equipmentHTML = `
@@ -495,49 +584,80 @@ const app = {
             `;
         } else if (day.focus.includes('Lower Body')) {
             const state = day.intensity === 'High' ? 'high' : 'mod';
-            lowerFront.forEach(p => setPartColor(p, state));
-            lowerBack.forEach(p => setPartColor(p, state));
-            joints.forEach(p => setPartColor(p, 'mod')); // Joints take moderate load
-            upperFront.forEach(p => setPartColor(p, 'rec'));
-            upperBack.forEach(p => setPartColor(p, 'rec'));
+            quads.forEach(p => setPartColor(p, state));
+            glutes.forEach(p => setPartColor(p, state));
+            hamstrings.forEach(p => setPartColor(p, state));
+            adductors.forEach(p => setPartColor(p, 'mod'));
+            calves.forEach(p => setPartColor(p, 'mod'));
+            core.forEach(p => setPartColor(p, 'mod')); // Core stabilizes
             equipmentHTML = `
                 <li><strong>Primary:</strong> STAR TRAC™ Inspiration Leg Press / Hack Squat (Targets Quads/Glutes)</li>
                 <li><strong>Secondary:</strong> STAR TRAC™ Instinct Leg Extension / Curl (Isolates Quads/Hamstrings)</li>
-                <li><strong>Alternative:</strong> Dumbbell Bulgarian Split Squats</li>
             `;
-        } else if (day.focus.includes('Upper Body')) {
+        } else if (day.focus.includes('Upper Body Push/Pull')) {
             const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperFront.forEach(p => setPartColor(p, state));
-            upperBack.forEach(p => setPartColor(p, state));
+            chest.forEach(p => setPartColor(p, state));
+            back.forEach(p => setPartColor(p, state));
             shoulders.forEach(p => setPartColor(p, state));
-            arms.forEach(p => setPartColor(p, state));
-            lowerFront.forEach(p => setPartColor(p, 'rec'));
-            lowerBack.forEach(p => setPartColor(p, 'rec'));
+            armsFront.forEach(p => setPartColor(p, state));
+            armsBack.forEach(p => setPartColor(p, state));
             equipmentHTML = `
-                <li><strong>Primary:</strong> STAR TRAC™ Inspiration Chest Press (Pecs/Delts) / Lat Pulldown (Lats/Biceps)</li>
+                <li><strong>Primary:</strong> Chest Press (Pecs/Delts) / Lat Pulldown (Lats/Biceps)</li>
                 <li><strong>Secondary:</strong> Dual Adjustable Pulley Cable Crossovers</li>
+            `;
+        } else if (day.focus.includes('Upper Body Calisthenics')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            back.forEach(p => setPartColor(p, state)); // Pullups
+            chest.forEach(p => setPartColor(p, 'mod')); // Dips
+            armsFront.forEach(p => setPartColor(p, state)); // Biceps
+            armsBack.forEach(p => setPartColor(p, state)); // Triceps
+            core.forEach(p => setPartColor(p, 'mod'));
+            equipmentHTML = `
+                <li><strong>Primary:</strong> Gymnastic Rings / Pull-up Bar</li>
+                <li><strong>Muscle Focus:</strong> Latissimus Dorsi, Teres Major, Biceps Brachii, Pectoralis Major.</li>
             `;
         } else if (day.focus.includes('Jump Rope')) {
             const state = day.intensity === 'High' ? 'high' : 'mod';
-            lowerBack.forEach(p => setPartColor(p, state)); // Calves highly active
-            lowerFront.forEach(p => setPartColor(p, 'mod')); // Quads synergists
+            calves.forEach(p => setPartColor(p, state)); // Gastrocnemius/Soleus highly active
+            quads.forEach(p => setPartColor(p, 'mod'));
             shoulders.forEach(p => setPartColor(p, 'mod')); // Delts stabilize
-            arms.forEach(p => setPartColor(p, 'mod')); // Forearms twirl
+            ['brachioradialis_l', 'brachioradialis_r', 'flexors_l', 'flexors_r'].forEach(p => setPartColor(p, 'mod')); // Forearms twirl
             equipmentHTML = `
                 <li><strong>Primary:</strong> Speed Rope / Jump Rope Intervals</li>
-                <li><strong>Metabolic Engine:</strong> Anaerobic / Aerobic Hybrid System</li>
-                <li><strong>Muscle Focus:</strong> High recruitment of Gastrocnemius (Calves) and Soleus.</li>
+                <li><strong>Muscle Focus:</strong> High recruitment of Gastrocnemius and Soleus.</li>
             `;
         } else if (day.focus.includes('Boxing')) {
             const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperFront.forEach(p => setPartColor(p, 'mod')); // Core twist
+            core.forEach(p => setPartColor(p, state)); // Core twist
             shoulders.forEach(p => setPartColor(p, state)); // Delts fatigue fast
-            arms.forEach(p => setPartColor(p, state)); // Triceps for extension
-            lowerFront.forEach(p => setPartColor(p, 'mod')); // Leg drive
+            armsBack.forEach(p => setPartColor(p, state)); // Triceps for extension
+            quads.forEach(p => setPartColor(p, 'mod')); // Leg drive
+            calves.forEach(p => setPartColor(p, 'mod'));
             equipmentHTML = `
                 <li><strong>Primary:</strong> Heavy Bag (Boxing Flow / Sprints)</li>
-                <li><strong>Metabolic Engine:</strong> Anaerobic Glycolysis System</li>
-                <li><strong>Muscle Focus:</strong> Anterior Deltoids, Triceps Brachii, Obliques for rotational power.</li>
+                <li><strong>Muscle Focus:</strong> Anterior Deltoids, Triceps Brachii, External Obliques.</li>
+            `;
+        } else if (day.focus.includes('Core / Gymnastic Rings')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            core.forEach(p => setPartColor(p, state)); // Intense core
+            back.forEach(p => setPartColor(p, 'mod')); // Stabilization
+            shoulders.forEach(p => setPartColor(p, 'mod'));
+            equipmentHTML = `
+                <li><strong>Primary:</strong> Gymnastic Rings / Floor Mat</li>
+                <li><strong>Muscle Focus:</strong> Rectus Abdominis, Transversus Abdominis, Obliques, Serratus Anterior.</li>
+            `;
+        } else if (day.focus.includes('Maximal Output')) {
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            glutes.forEach(p => setPartColor(p, state));
+            quads.forEach(p => setPartColor(p, state));
+            hamstrings.forEach(p => setPartColor(p, state));
+            core.forEach(p => setPartColor(p, state)); // Erector spinae for deadlift
+            back.forEach(p => setPartColor(p, state));
+            chest.forEach(p => setPartColor(p, state));
+            shoulders.forEach(p => setPartColor(p, state));
+            equipmentHTML = `
+                <li><strong>Primary:</strong> Olympic Barbell, Squat Rack, Platform</li>
+                <li><strong>Focus:</strong> Maximal CNS recruitment. Entire kinetic chain.</li>
             `;
         } else {
             // Full body default
@@ -551,7 +671,6 @@ const app = {
 
         document.getElementById('vis-equipment').innerHTML = equipmentHTML;
     },
-
     updateNutritionModule() {
         if (!this.state.biometrics) return;
 
@@ -569,8 +688,10 @@ const app = {
 
         let pPct = 0.30, cPct = 0.45, fPct = 0.25;
         let goalText = "Maintenance";
+        let deficitKcal = 0;
 
         if (bio.goal === 'weight_loss') {
+            deficitKcal = Math.round(tdee * 0.25);
             tdee = Math.round(tdee * 0.75); // Aggressive 25% deficit
             pPct = 0.45; // High protein for satiety and lean mass leverage
             cPct = 0.30;
@@ -582,9 +703,28 @@ const app = {
             goalText = "Hypertrophic Surplus";
         }
 
+        // Calculate BMI and Weight Goals
+        const heightMeters = bio.height / 100;
+        const bmi = (bio.weight / (heightMeters * heightMeters)).toFixed(1);
+        let targetBMI = 22; // Healthy target BMI
+        if (bio.gender === 'male') targetBMI = 23;
+        const targetWeight = (targetBMI * (heightMeters * heightMeters)).toFixed(1);
+
+        let bmiText = `<strong>BMI:</strong> ${bmi} <span style="font-size: 0.85rem; color: var(--text-muted);">(Target Healthy Weight: ~${targetWeight}kg)</span>`;
+        let fatLossText = "";
+
+        if (deficitKcal > 0) {
+            // Approx 7700 kcal per kg of body fat
+            const weeklyDeficit = deficitKcal * 7;
+            const fatLossWeekly = (weeklyDeficit / 7700).toFixed(2);
+            fatLossText = `<br><span style="font-size: 0.85rem; color: #166534; font-weight: bold;">Expected Fat Loss: ~${fatLossWeekly} kg / week</span>`;
+        }
+
         document.getElementById('nutrition-tdee').innerHTML = `
-            <strong>Target:</strong> ${tdee} kcal/day <br>
+            ${bmiText}<br>
+            <strong>Target Intake:</strong> ${tdee} kcal/day <br>
             <span style="font-size: 0.85rem; color: var(--text-muted);">Protocol: ${goalText}</span>
+            ${fatLossText}
         `;
 
         // Macros
@@ -654,7 +794,10 @@ const app = {
             tubers: document.getElementById('miss-tubers').checked,
             dairy: document.getElementById('miss-dairy').checked,
             meat: document.getElementById('miss-meat').checked,
-            sun: document.getElementById('miss-sun').checked
+            sun: document.getElementById('miss-sun').checked,
+            beets: document.getElementById('miss-beets').checked,
+            berries: document.getElementById('miss-berries').checked,
+            spices: document.getElementById('miss-spices').checked
         };
 
         // Calculate Daily Intake Requirements based on biometrics & schedule intensity
@@ -726,6 +869,20 @@ const app = {
         if (missing.sun) {
             deficits.push("Vitamin D3 (Cholecalciferol)");
             supplements.push("Vitamin D3 2000-5000 IU (Mechanism: Regulates calcium absorption & endocrine function. MUST take with fat source).");
+        }
+        if (missing.beets) {
+            deficits.push("Nitrates & Betaine (Deficit Risk: Reduced vasodilation, poor blood flow during heavy lifts).");
+            ingredients.push("1/2 Small Beetroot (peeled)");
+            ingredients.push("1 Medium Carrot (Beta-carotene)");
+        }
+        if (missing.berries) {
+            deficits.push("Anthocyanins & Antioxidants (Deficit Risk: Increased oxidative stress post-training).");
+            ingredients.push("1/2 Cup Mixed Berries (Blueberries/Blackberries)");
+        }
+        if (missing.spices) {
+            deficits.push("Gingerol & Curcumin (Deficit Risk: Chronic systemic inflammation, poor gastric emptying).");
+            ingredients.push("1/2 inch Fresh Ginger Root");
+            ingredients.push("1/4 tsp Turmeric + pinch of Black Pepper (Piperine)");
         }
 
         const outContainer = document.getElementById('juicer-output');
