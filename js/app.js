@@ -243,80 +243,117 @@ const app = {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Define colors based on phase/intensity
-        const colorActiveHigh = '#ef4444'; // Red
-        const colorActiveMod = '#3b82f6';  // Blue
-        const colorRecovering = '#22c55e'; // Green
-        const colorNeutral = '#e5e7eb';    // Gray
+        // Star Trac Style Theme
+        const bgFill = '#0a0a0c'; // Deep black background
+        ctx.fillStyle = bgFill;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Tech Grid Background
+        ctx.strokeStyle = '#111827';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 20) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        }
+        for (let i = 0; i < canvas.height; i += 20) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+        }
+
+        // Define cyber colors based on phase/intensity
+        const colorActiveHigh = 'rgba(239, 68, 68, 0.8)';   // Neon Red
+        const borderHigh = '#fca5a5';
+        const colorActiveMod = 'rgba(59, 130, 246, 0.8)';  // Neon Blue
+        const borderMod = '#93c5fd';
+        const colorRecovering = 'rgba(34, 197, 94, 0.8)';  // Neon Green
+        const borderRec = '#86efac';
+        const colorNeutral = 'rgba(55, 65, 81, 0.6)';      // Cyber Gray
+        const borderNeutral = '#9ca3af';
 
         // Map focus to muscle groups
-        let headColor = colorNeutral;
-        let chestColor = colorNeutral;
-        let armsColor = colorNeutral;
-        let legsColor = colorNeutral;
+        let chestColor = { fill: colorNeutral, border: borderNeutral };
+        let armsColor = { fill: colorNeutral, border: borderNeutral };
+        let legsColor = { fill: colorNeutral, border: borderNeutral };
 
         if (day.phase === 'Recovery') {
-            headColor = chestColor = armsColor = legsColor = colorRecovering;
+            chestColor = armsColor = legsColor = { fill: colorRecovering, border: borderRec };
         } else if (day.focus.includes('Lower Body')) {
-            legsColor = day.intensity === 'High' ? colorActiveHigh : colorActiveMod;
-            chestColor = armsColor = colorRecovering;
+            legsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
+            chestColor = armsColor = { fill: colorRecovering, border: borderRec };
         } else if (day.focus.includes('Upper Body')) {
-            chestColor = armsColor = day.intensity === 'High' ? colorActiveHigh : colorActiveMod;
-            legsColor = colorRecovering;
+            chestColor = armsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
+            legsColor = { fill: colorRecovering, border: borderRec };
         } else if (day.phase === 'Aerobic' || day.phase === 'Anaerobic' || day.focus.includes('Full Body')) {
-            chestColor = armsColor = legsColor = day.intensity === 'High' ? colorActiveHigh : colorActiveMod;
+            chestColor = armsColor = legsColor = day.intensity === 'High' ? { fill: colorActiveHigh, border: borderHigh } : { fill: colorActiveMod, border: borderMod };
         }
 
-        // Helper to draw ellipses
-        function drawEllipse(cx, cy, rx, ry, color) {
-            ctx.beginPath();
-            ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.strokeStyle = '#1f2937';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-
-        // Procedurally draw anatomical model using basic shapes
         const cx = canvas.width / 2;
 
-        // Head
-        drawEllipse(cx, 50, 20, 25, headColor);
-        // Torso/Chest
-        drawEllipse(cx, 150, 45, 70, chestColor);
-        // Pelvis
-        drawEllipse(cx, 240, 40, 30, chestColor);
-
-        // Left Arm
-        drawEllipse(cx - 65, 130, 15, 40, armsColor); // Upper arm
-        drawEllipse(cx - 75, 200, 12, 35, armsColor); // Forearm
-
-        // Right Arm
-        drawEllipse(cx + 65, 130, 15, 40, armsColor);
-        drawEllipse(cx + 75, 200, 12, 35, armsColor);
-
-        // Left Leg
-        drawEllipse(cx - 25, 310, 20, 50, legsColor); // Thigh
-        drawEllipse(cx - 25, 410, 15, 45, legsColor); // Calf
-
-        // Right Leg
-        drawEllipse(cx + 25, 310, 20, 50, legsColor);
-        drawEllipse(cx + 25, 410, 15, 45, legsColor);
-
-        // Connections / Joints (black dots)
-        ctx.fillStyle = '#000';
-        [
-            [cx, 80], // Neck
-            [cx - 50, 100], [cx + 50, 100], // Shoulders
-            [cx - 70, 170], [cx + 70, 170], // Elbows
-            [cx - 25, 270], [cx + 25, 270], // Hips
-            [cx - 25, 360], [cx + 25, 360]  // Knees
-        ].forEach(([x, y]) => {
+        // Polygonal drawing helper
+        function drawPolygon(points, style) {
             ctx.beginPath();
-            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.moveTo(points[0][0], points[0][1]);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i][0], points[i][1]);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = style.fill;
             ctx.fill();
-        });
+
+            ctx.strokeStyle = style.border;
+            ctx.lineWidth = 1.5;
+            // Add subtle glow
+            ctx.shadowColor = style.border;
+            ctx.shadowBlur = 5;
+            ctx.stroke();
+            ctx.shadowBlur = 0; // reset
+        }
+
+        // Star Trac High-Detail Polygonal Geometry
+
+        // Head/Neck (Neutral)
+        drawPolygon([[cx-15,30], [cx+15,30], [cx+20,50], [cx+10,75], [cx-10,75], [cx-20,50]], {fill: colorNeutral, border: borderNeutral});
+        drawPolygon([[cx-10,75], [cx+10,75], [cx+15,90], [cx-15,90]], {fill: colorNeutral, border: borderNeutral});
+
+        // Chest / Torso / Abs
+        drawPolygon([[cx-15,90], [cx+15,90], [cx+45,110], [cx+40,150], [cx,165], [cx-40,150], [cx-45,110]], chestColor); // Pecs
+        drawPolygon([[cx-40,150], [cx,165], [cx+40,150], [cx+30,200], [cx,220], [cx-30,200]], chestColor); // Upper Abs
+        drawPolygon([[cx-30,200], [cx,220], [cx+30,200], [cx+35,240], [cx,260], [cx-35,240]], chestColor); // Lower Abs/Pelvis
+
+        // Shoulders (Deltoids)
+        drawPolygon([[cx-45,110], [cx-15,90], [cx-60,95], [cx-70,125]], armsColor);
+        drawPolygon([[cx+45,110], [cx+15,90], [cx+60,95], [cx+70,125]], armsColor);
+
+        // Arms
+        drawPolygon([[cx-70,125], [cx-45,110], [cx-40,150], [cx-65,180], [cx-80,180]], armsColor); // Left Bicep/Tricep
+        drawPolygon([[cx+70,125], [cx+45,110], [cx+40,150], [cx+65,180], [cx+80,180]], armsColor); // Right Bicep/Tricep
+
+        drawPolygon([[cx-65,180], [cx-80,180], [cx-85,240], [cx-70,250]], armsColor); // Left Forearm
+        drawPolygon([[cx+65,180], [cx+80,180], [cx+85,240], [cx+70,250]], armsColor); // Right Forearm
+
+        // Legs (Quads)
+        drawPolygon([[cx-35,240], [cx,260], [cx-10,340], [cx-45,330]], legsColor); // Left Quad
+        drawPolygon([[cx+35,240], [cx,260], [cx+10,340], [cx+45,330]], legsColor); // Right Quad
+
+        // Knees
+        drawPolygon([[cx-45,330], [cx-10,340], [cx-15,360], [cx-40,360]], legsColor);
+        drawPolygon([[cx+45,330], [cx+10,340], [cx+15,360], [cx+40,360]], legsColor);
+
+        // Calves
+        drawPolygon([[cx-40,360], [cx-15,360], [cx-20,440], [cx-35,440]], legsColor);
+        drawPolygon([[cx+40,360], [cx+15,360], [cx+20,440], [cx+35,440]], legsColor);
+
+        // Tech Overlay UI
+        ctx.fillStyle = '#10b981';
+        ctx.font = '10px Courier New';
+        ctx.fillText('SYS.OPT: ONLINE', 10, 20);
+        ctx.fillText(`PHASE: ${day.phase.toUpperCase()}`, 10, 35);
+        ctx.fillText(`INTENSITY: ${day.intensity.toUpperCase()}`, 10, 50);
+
+        // Scan line effect
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        for (let i = 0; i < canvas.height; i += 4) {
+            ctx.fillRect(0, i, canvas.width, 1);
+        }
     },
 
     updateNutritionModule() {
