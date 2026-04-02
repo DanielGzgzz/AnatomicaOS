@@ -331,6 +331,7 @@ const app = {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(width, height);
         this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.shadowMap.enabled = true;
         container.appendChild(this.renderer.domElement);
 
         // Controls
@@ -342,16 +343,18 @@ const app = {
         this.controls.maxDistance = 25;
 
         // Lights
-        const ambientLight = new THREE.AmbientLight(0x222222);
-        this.scene.add(ambientLight);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        hemiLight.position.set(0, 20, 0);
+        this.scene.add(hemiLight);
 
-        const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight1.position.set(5, 5, 10);
-        this.scene.add(dirLight1);
-
-        const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 0.5); // Cyber blue backlight
-        dirLight2.position.set(-5, 0, -10);
-        this.scene.add(dirLight2);
+        const spotLight = new THREE.SpotLight(0xffffff, 1);
+        spotLight.position.set(0, 20, 10);
+        spotLight.angle = Math.PI / 4;
+        spotLight.penumbra = 0.5;
+        spotLight.decay = 2;
+        spotLight.distance = 50;
+        spotLight.castShadow = true;
+        this.scene.add(spotLight);
 
         // Build Procedural Geometry (Faceted Star Trac Style)
         this.bodyParts = {};
@@ -413,23 +416,23 @@ const app = {
 
         // Helper to create detailed positioned muscles
         const createMuscle = (geo, name, x, y, z, sx, sy, sz, rx=0, ry=0, rz=0) => {
-            const material = createCyberMaterial();
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.4,
+                metalness: 0.7,
+            });
+
             const mesh = new THREE.Mesh(geo, material);
             mesh.scale.set(sx, sy, sz);
             mesh.position.set(x, y, z);
             mesh.rotation.set(rx, ry, rz);
-            mesh.userData = { name: name }; // Store internal name for raycasting
-
-            // Render as dense point cloud instead of wireframe lines
-            const pointsMat = new THREE.PointsMaterial({
-                color: 0x9ca3af,
-                size: 0.05,
-                transparent: true,
-                opacity: 0.6,
-                blending: THREE.AdditiveBlending
-            });
-            const points = new THREE.Points(geo, pointsMat);
-            mesh.add(points);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = {
+                name: name,
+                baseScale: new THREE.Vector3(sx, sy, sz),
+                baseColor: 0x222222
+            }; // Store internal name and base properties for raycasting and inflation
 
             // Add motion trail capability
             const trailGeo = new THREE.BufferGeometry();
@@ -440,16 +443,15 @@ const app = {
             this.bodyGroup.add(mesh);
             this.bodyParts[name] = {
                 mesh: mesh,
-                points: points, // Used to be line
                 trailLine: trailLine,
                 trailPositions: [],
                 maxTrailPoints: 15
             };
         };
 
-        // Geometries for dense point cloud look
-        const polyGeo = new THREE.IcosahedronGeometry(1, 4); // High poly sphere for dense points
-        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 8); // High detail cylinder
+        // Geometries for solid component look
+        const polyGeo = new THREE.IcosahedronGeometry(1, 2); // Lower poly for solid components looks cleaner
+        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 1);
 
         // 1. Head & Neck
         createMuscle(polyGeo, 'head', 0, 7.5, 0, 1.2, 1.5, 1.3);
@@ -628,8 +630,18 @@ const app = {
                 const internalName = object.userData.name;
                 const displayName = muscleNames[internalName] || internalName;
 
+                let roleInfo = "";
+                let map = this.MovementMap ? (this.MovementMap[this.animState] || this.MovementMap["idle"]) : null;
+                if (map) {
+                    if (map.primary.includes(internalName)) {
+                        roleInfo = "<br><span style='color: #ef4444'>[Primary Mover]</span>";
+                    } else if (map.synergists.includes(internalName)) {
+                        roleInfo = "<br><span style='color: #06b6d4'>[Synergist/Stabilizer]</span>";
+                    }
+                }
+
                 this.tooltip.style.display = 'block';
-                this.tooltip.innerHTML = `> ${displayName}`;
+                this.tooltip.innerHTML = `> ${displayName} ${roleInfo}`;
 
                 // Position tooltip near cursor, relative to container
                 this.tooltip.style.left = (event.clientX - rect.left + 15) + 'px';
@@ -654,6 +666,25 @@ const app = {
                 scale: this.bodyParts[key].mesh.scale.clone()
             };
         });
+
+        // Movement-Muscle Map (Biomechanical Dictionary)
+        this.MovementMap = {
+            "squat": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'],
+                synergists: ['ham_l', 'ham_r', 'lower_back', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
+                animation: "procedural_squat"
+            },
+            "press": {
+                primary: ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'],
+                synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
+                animation: "procedural_press"
+            },
+            "idle": {
+                primary: [],
+                synergists: [],
+                animation: "idle"
+            }
+        };
 
         // JSON-based Exercise Recipes for Animation (Relative Offsets)
         this.exerciseRecipes = {
@@ -838,7 +869,7 @@ const app = {
         ['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].forEach(p => {
             if(this.bodyParts[p]) {
                 this.bodyParts[p].mesh.scale.set(
-                    this.bodyParts[p].mesh.scale.x, // keep orig (actually it's scaled in create, but we're modifying absolute here, wait)
+                    this.basePositions[p].scale.x, // keep orig (actually it's scaled in create, but we're modifying absolute here, wait)
                     // It's safer to read from initial scale. Let's add initial scale to basePositions
                     this.basePositions[p].scale.y * breathScale,
                     this.basePositions[p].scale.z * breathScale
@@ -848,6 +879,50 @@ const app = {
 
         // Interpolation helper
         const lerp = (start, end, alpha) => start + (end - start) * alpha;
+
+        // Reset all muscles to neutral before applying active state
+        Object.keys(this.bodyParts).forEach(key => {
+            const part = this.bodyParts[key];
+            if (!['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].includes(key)) {
+                part.mesh.scale.copy(this.basePositions[key].scale);
+            }
+            part.mesh.material.color.setHex(0x222222);
+            part.mesh.material.emissive.setHex(0x000000);
+        });
+
+        let map = this.MovementMap[this.animState] || this.MovementMap["idle"];
+        const pulse = (Math.sin(this.time * 4) + 1) / 2; // 0 to 1 fast pulse
+
+        if (this.animState !== 'idle') {
+            // Apply Inflation & Color to Primary Movers
+            map.primary.forEach(p => {
+                if(this.bodyParts[p]) {
+                    const base = this.basePositions[p].scale;
+                    // Inflate by 15% + pulse effect
+                    const inflate = 1.15 + (pulse * 0.05);
+                    this.bodyParts[p].mesh.scale.set(base.x * inflate, base.y * inflate, base.z * inflate);
+
+                    // Fluorescent Red with emissive pulse
+                    this.bodyParts[p].mesh.material.color.setHex(0xff3333);
+                    this.bodyParts[p].mesh.material.emissive.setHex(0xff0000);
+                    this.bodyParts[p].mesh.material.emissiveIntensity = 0.5 + pulse * 0.5;
+                }
+            });
+
+            // Apply minor inflation & Color to Synergists
+            map.synergists.forEach(p => {
+                if(this.bodyParts[p]) {
+                    const base = this.basePositions[p].scale;
+                    const inflate = 1.05 + (pulse * 0.02);
+                    this.bodyParts[p].mesh.scale.set(base.x * inflate, base.y * inflate, base.z * inflate);
+
+                    // Fluorescent Cyan for synergists
+                    this.bodyParts[p].mesh.material.color.setHex(0x00ffff);
+                    this.bodyParts[p].mesh.material.emissive.setHex(0x0088ff);
+                    this.bodyParts[p].mesh.material.emissiveIntensity = 0.3 + pulse * 0.3;
+                }
+            });
+        }
 
         if (this.animState === 'squat') {
             const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
@@ -957,11 +1032,8 @@ const app = {
         const setPartColor = (part, stateName) => {
             const c = colors[stateName];
             if(this.bodyParts[part]) {
-                this.bodyParts[part].mesh.material.uniforms.glowColor.value.setHex(c.fill);
-                // Also intensify the glow of points slightly based on state
-                this.bodyParts[part].points.material.color.setHex(c.line);
-                this.bodyParts[part].points.material.size = (stateName === 'high') ? 0.08 : 0.05;
-                this.bodyParts[part].points.material.opacity = (stateName === 'high') ? 0.9 : 0.6;
+                // Update color for MeshStandardMaterial
+                this.bodyParts[part].mesh.material.color.setHex(c.fill);
             }
         };
 
