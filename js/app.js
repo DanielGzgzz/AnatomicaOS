@@ -359,6 +359,7 @@ const app = {
             mesh.scale.set(sx, sy, sz);
             mesh.position.set(x, y, z);
             mesh.rotation.set(rx, ry, rz);
+            mesh.userData = { name: name }; // Store internal name for raycasting
 
             const edges = new THREE.EdgesGeometry(geo);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x9ca3af, linewidth: 1 }));
@@ -399,28 +400,28 @@ const app = {
         createMuscle(polyGeo, 'lat_r', 1.8, 3.5, -0.6, 1.2, 2.5, 0.6, 0.2, 0, -0.2);
         createMuscle(polyGeo, 'lower_back', 0, 2.0, -0.8, 1.5, 1.5, 0.5);
 
-        // 4. Arms
+        // 4. Arms (Muscular, aligned, and slightly bent)
         // Shoulders (Deltoids)
-        createMuscle(polyGeo, 'delt_l', -2.8, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, 0.4);
-        createMuscle(polyGeo, 'delt_r', 2.8, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, -0.4);
+        createMuscle(polyGeo, 'delt_l', -2.2, 5.0, 0, 1.2, 1.3, 1.2, 0, 0, 0.3);
+        createMuscle(polyGeo, 'delt_r', 2.2, 5.0, 0, 1.2, 1.3, 1.2, 0, 0, -0.3);
 
         // Upper Arm (Bicep/Tricep)
-        createMuscle(cylGeo, 'bicep_l', -3.2, 3.5, 0.3, 0.8, 2.0, 0.8, 0, 0, 0.2);
-        createMuscle(cylGeo, 'bicep_r', 3.2, 3.5, 0.3, 0.8, 2.0, 0.8, 0, 0, -0.2);
-        createMuscle(cylGeo, 'tricep_l', -3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, 0.2);
-        createMuscle(cylGeo, 'tricep_r', 3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, -0.2);
+        createMuscle(cylGeo, 'bicep_l', -2.6, 3.8, 0.2, 1.0, 1.8, 0.9, 0, 0, 0.2);
+        createMuscle(cylGeo, 'bicep_r', 2.6, 3.8, 0.2, 1.0, 1.8, 0.9, 0, 0, -0.2);
+        createMuscle(cylGeo, 'tricep_l', -2.6, 3.8, -0.3, 0.9, 1.8, 0.8, 0, 0, 0.2);
+        createMuscle(cylGeo, 'tricep_r', 2.6, 3.8, -0.3, 0.9, 1.8, 0.8, 0, 0, -0.2);
 
         // Elbow Joints
-        createMuscle(polyGeo, 'elbow_l', -3.5, 2.6, 0, 0.6, 0.6, 0.6, 0, 0, 0);
-        createMuscle(polyGeo, 'elbow_r', 3.5, 2.6, 0, 0.6, 0.6, 0.6, 0, 0, 0);
+        createMuscle(polyGeo, 'elbow_l', -2.9, 2.8, -0.1, 0.7, 0.7, 0.7, 0, 0, 0.2);
+        createMuscle(polyGeo, 'elbow_r', 2.9, 2.8, -0.1, 0.7, 0.7, 0.7, 0, 0, -0.2);
 
-        // Forearms
-        createMuscle(cylGeo, 'forearm_l', -3.8, 1.5, 0.2, 0.7, 2.2, 0.6, 0, 0, 0.1);
-        createMuscle(cylGeo, 'forearm_r', 3.8, 1.5, 0.2, 0.7, 2.2, 0.6, 0, 0, -0.1);
+        // Forearms (Angled slightly forward and inwards)
+        createMuscle(cylGeo, 'forearm_l', -3.1, 1.8, 0.3, 0.8, 1.8, 0.7, -0.2, 0, 0.1);
+        createMuscle(cylGeo, 'forearm_r', 3.1, 1.8, 0.3, 0.8, 1.8, 0.7, -0.2, 0, -0.1);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -4.0, 0.0, 0.2, 0.5, 0.8, 0.3);
-        createMuscle(polyGeo, 'hand_r', 4.0, 0.0, 0.2, 0.5, 0.8, 0.3);
+        createMuscle(polyGeo, 'hand_l', -3.3, 0.8, 0.6, 0.5, 0.8, 0.4, -0.2, 0, 0.1);
+        createMuscle(polyGeo, 'hand_r', 3.3, 0.8, 0.6, 0.5, 0.8, 0.4, -0.2, 0, -0.1);
 
         // 5. Lower Body
         // Glutes / Pelvis
@@ -449,6 +450,103 @@ const app = {
         // Feet
         createMuscle(polyGeo, 'foot_l', -1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
         createMuscle(polyGeo, 'foot_r', 1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
+
+        // Raycasting for Tooltips
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+
+        // Tooltip element creation
+        this.tooltip = document.createElement('div');
+        this.tooltip.style.position = 'absolute';
+        this.tooltip.style.backgroundColor = 'rgba(17, 24, 39, 0.9)'; // Tailwind gray-900
+        this.tooltip.style.color = '#10b981'; // Cyber green
+        this.tooltip.style.padding = '8px 12px';
+        this.tooltip.style.borderRadius = '4px';
+        this.tooltip.style.border = '1px solid #374151'; // Tailwind gray-700
+        this.tooltip.style.pointerEvents = 'none';
+        this.tooltip.style.display = 'none';
+        this.tooltip.style.zIndex = '1000';
+        this.tooltip.style.fontFamily = 'monospace';
+        this.tooltip.style.fontSize = '12px';
+        container.style.position = 'relative'; // Ensure relative positioning for absolute tooltip
+        container.appendChild(this.tooltip);
+
+        // Muscle name dictionary map
+        const muscleNames = {
+            'head': 'Cranium / Facial Muscles',
+            'neck': 'Sternocleidomastoid',
+            'traps_l': 'Trapezius (Left)',
+            'traps_r': 'Trapezius (Right)',
+            'pec_l': 'Pectoralis Major (Left)',
+            'pec_r': 'Pectoralis Major (Right)',
+            'abs_1l': 'Rectus Abdominis (Upper Left)',
+            'abs_1r': 'Rectus Abdominis (Upper Right)',
+            'abs_2l': 'Rectus Abdominis (Mid Left)',
+            'abs_2r': 'Rectus Abdominis (Mid Right)',
+            'abs_3l': 'Rectus Abdominis (Lower Left)',
+            'abs_3r': 'Rectus Abdominis (Lower Right)',
+            'oblique_l': 'External Oblique (Left)',
+            'oblique_r': 'External Oblique (Right)',
+            'lat_l': 'Latissimus Dorsi (Left)',
+            'lat_r': 'Latissimus Dorsi (Right)',
+            'lower_back': 'Erector Spinae / Lumbar',
+            'delt_l': 'Deltoid (Left)',
+            'delt_r': 'Deltoid (Right)',
+            'bicep_l': 'Biceps Brachii (Left)',
+            'bicep_r': 'Biceps Brachii (Right)',
+            'tricep_l': 'Triceps Brachii (Left)',
+            'tricep_r': 'Triceps Brachii (Right)',
+            'elbow_l': 'Olecranon / Epicondyle (Left)',
+            'elbow_r': 'Olecranon / Epicondyle (Right)',
+            'forearm_l': 'Brachioradialis / Flexors (Left)',
+            'forearm_r': 'Brachioradialis / Flexors (Right)',
+            'hand_l': 'Manus (Left)',
+            'hand_r': 'Manus (Right)',
+            'glute_l': 'Gluteus Maximus (Left)',
+            'glute_r': 'Gluteus Maximus (Right)',
+            'pelvis': 'Pelvic Girdle',
+            'quad_l': 'Quadriceps Femoris (Left)',
+            'quad_r': 'Quadriceps Femoris (Right)',
+            'ham_l': 'Biceps Femoris / Hamstrings (Left)',
+            'ham_r': 'Biceps Femoris / Hamstrings (Right)',
+            'knee_l': 'Patella (Left)',
+            'knee_r': 'Patella (Right)',
+            'calf_l': 'Gastrocnemius / Soleus (Left)',
+            'calf_r': 'Gastrocnemius / Soleus (Right)',
+            'shin_l': 'Tibialis Anterior (Left)',
+            'shin_r': 'Tibialis Anterior (Right)',
+            'foot_l': 'Pes (Left)',
+            'foot_r': 'Pes (Right)'
+        };
+
+        const onMouseMove = (event) => {
+            const rect = container.getBoundingClientRect();
+            this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+
+            // Collect all meshes
+            const meshes = Object.values(this.bodyParts).map(part => part.mesh);
+            const intersects = this.raycaster.intersectObjects(meshes);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                const internalName = object.userData.name;
+                const displayName = muscleNames[internalName] || internalName;
+
+                this.tooltip.style.display = 'block';
+                this.tooltip.innerHTML = `> ${displayName}`;
+
+                // Position tooltip near cursor, relative to container
+                this.tooltip.style.left = (event.clientX - rect.left + 15) + 'px';
+                this.tooltip.style.top = (event.clientY - rect.top + 15) + 'px';
+            } else {
+                this.tooltip.style.display = 'none';
+            }
+        };
+
+        container.addEventListener('mousemove', onMouseMove);
 
         // Animation Loop
         const animate = () => {
