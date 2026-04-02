@@ -379,77 +379,77 @@ const app = {
         createMuscle(polyGeo, 'traps_l', -1.2, 5.8, -0.2, 1.5, 0.8, 0.8, 0, 0, 0.5);
         createMuscle(polyGeo, 'traps_r', 1.2, 5.8, -0.2, 1.5, 0.8, 0.8, 0, 0, -0.5);
 
-        // 2. Torso (Front)
-        createMuscle(polyGeo, 'pec_l', -1.1, 4.5, 0.8, 1.4, 1.2, 0.5, 0.2, -0.2, 0);
-        createMuscle(polyGeo, 'pec_r', 1.1, 4.5, 0.8, 1.4, 1.2, 0.5, 0.2, 0.2, 0);
+        // 2. Torso (Front - Slimmer)
+        createMuscle(polyGeo, 'pec_l', -1.0, 4.5, 0.7, 1.2, 1.1, 0.4, 0.2, -0.2, 0);
+        createMuscle(polyGeo, 'pec_r', 1.0, 4.5, 0.7, 1.2, 1.1, 0.4, 0.2, 0.2, 0);
 
-        // Abs (6-pack)
-        createMuscle(polyGeo, 'abs_1l', -0.5, 3.5, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_1r', 0.5, 3.5, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_2l', -0.5, 2.7, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_2r', 0.5, 2.7, 0.9, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_3l', -0.5, 1.9, 0.8, 0.6, 0.6, 0.3);
-        createMuscle(polyGeo, 'abs_3r', 0.5, 1.9, 0.8, 0.6, 0.6, 0.3);
+        // Abs (6-pack - Slimmer)
+        createMuscle(polyGeo, 'abs_1l', -0.4, 3.5, 0.8, 0.5, 0.6, 0.25);
+        createMuscle(polyGeo, 'abs_1r', 0.4, 3.5, 0.8, 0.5, 0.6, 0.25);
+        createMuscle(polyGeo, 'abs_2l', -0.4, 2.7, 0.8, 0.5, 0.6, 0.25);
+        createMuscle(polyGeo, 'abs_2r', 0.4, 2.7, 0.8, 0.5, 0.6, 0.25);
+        createMuscle(polyGeo, 'abs_3l', -0.4, 1.9, 0.7, 0.5, 0.6, 0.25);
+        createMuscle(polyGeo, 'abs_3r', 0.4, 1.9, 0.7, 0.5, 0.6, 0.25);
 
-        // Obliques
-        createMuscle(polyGeo, 'oblique_l', -1.5, 2.7, 0.5, 0.8, 1.5, 0.6, 0, 0, -0.2);
-        createMuscle(polyGeo, 'oblique_r', 1.5, 2.7, 0.5, 0.8, 1.5, 0.6, 0, 0, 0.2);
+        // Obliques (Slimmer)
+        createMuscle(polyGeo, 'oblique_l', -1.3, 2.7, 0.4, 0.6, 1.5, 0.5, 0, 0, -0.15);
+        createMuscle(polyGeo, 'oblique_r', 1.3, 2.7, 0.4, 0.6, 1.5, 0.5, 0, 0, 0.15);
 
-        // 3. Torso (Back)
-        createMuscle(polyGeo, 'lat_l', -1.8, 3.5, -0.6, 1.2, 2.5, 0.6, 0.2, 0, 0.2);
-        createMuscle(polyGeo, 'lat_r', 1.8, 3.5, -0.6, 1.2, 2.5, 0.6, 0.2, 0, -0.2);
-        createMuscle(polyGeo, 'lower_back', 0, 2.0, -0.8, 1.5, 1.5, 0.5);
+        // 3. Torso (Back - Slimmer)
+        createMuscle(polyGeo, 'lat_l', -1.5, 3.5, -0.5, 1.0, 2.3, 0.5, 0.2, 0, 0.15);
+        createMuscle(polyGeo, 'lat_r', 1.5, 3.5, -0.5, 1.0, 2.3, 0.5, 0.2, 0, -0.15);
+        createMuscle(polyGeo, 'lower_back', 0, 2.0, -0.7, 1.3, 1.5, 0.4);
 
-        // 4. Arms (Muscular, aligned, and slightly bent)
+        // 4. Arms (Slimmer, spread out slightly)
         // Shoulders (Deltoids)
-        createMuscle(polyGeo, 'delt_l', -2.2, 5.0, 0, 1.2, 1.3, 1.2, 0, 0, 0.3);
-        createMuscle(polyGeo, 'delt_r', 2.2, 5.0, 0, 1.2, 1.3, 1.2, 0, 0, -0.3);
+        createMuscle(polyGeo, 'delt_l', -2.5, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, 0.5);
+        createMuscle(polyGeo, 'delt_r', 2.5, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, -0.5);
 
         // Upper Arm (Bicep/Tricep)
-        createMuscle(cylGeo, 'bicep_l', -2.6, 3.8, 0.2, 1.0, 1.8, 0.9, 0, 0, 0.2);
-        createMuscle(cylGeo, 'bicep_r', 2.6, 3.8, 0.2, 1.0, 1.8, 0.9, 0, 0, -0.2);
-        createMuscle(cylGeo, 'tricep_l', -2.6, 3.8, -0.3, 0.9, 1.8, 0.8, 0, 0, 0.2);
-        createMuscle(cylGeo, 'tricep_r', 2.6, 3.8, -0.3, 0.9, 1.8, 0.8, 0, 0, -0.2);
+        createMuscle(cylGeo, 'bicep_l', -3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, 0.4);
+        createMuscle(cylGeo, 'bicep_r', 3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, -0.4);
+        createMuscle(cylGeo, 'tricep_l', -3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, 0.4);
+        createMuscle(cylGeo, 'tricep_r', 3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, -0.4);
 
         // Elbow Joints
-        createMuscle(polyGeo, 'elbow_l', -2.9, 2.8, -0.1, 0.7, 0.7, 0.7, 0, 0, 0.2);
-        createMuscle(polyGeo, 'elbow_r', 2.9, 2.8, -0.1, 0.7, 0.7, 0.7, 0, 0, -0.2);
+        createMuscle(polyGeo, 'elbow_l', -3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, 0.4);
+        createMuscle(polyGeo, 'elbow_r', 3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, -0.4);
 
-        // Forearms (Angled slightly forward and inwards)
-        createMuscle(cylGeo, 'forearm_l', -3.1, 1.8, 0.3, 0.8, 1.8, 0.7, -0.2, 0, 0.1);
-        createMuscle(cylGeo, 'forearm_r', 3.1, 1.8, 0.3, 0.8, 1.8, 0.7, -0.2, 0, -0.1);
+        // Forearms
+        createMuscle(cylGeo, 'forearm_l', -4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
+        createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, -0.3);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -3.3, 0.8, 0.6, 0.5, 0.8, 0.4, -0.2, 0, 0.1);
-        createMuscle(polyGeo, 'hand_r', 3.3, 0.8, 0.6, 0.5, 0.8, 0.4, -0.2, 0, -0.1);
+        createMuscle(polyGeo, 'hand_l', -4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
+        createMuscle(polyGeo, 'hand_r', 4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
 
-        // 5. Lower Body
+        // 5. Lower Body (Slimmer)
         // Glutes / Pelvis
-        createMuscle(polyGeo, 'glute_l', -1.0, 0.5, -0.8, 1.4, 1.4, 1.0, 0.2, 0, 0);
-        createMuscle(polyGeo, 'glute_r', 1.0, 0.5, -0.8, 1.4, 1.4, 1.0, 0.2, 0, 0);
-        createMuscle(polyGeo, 'pelvis', 0, 0.5, 0.4, 1.8, 1.2, 0.8);
+        createMuscle(polyGeo, 'glute_l', -0.9, 0.5, -0.7, 1.2, 1.3, 0.8, 0.2, 0, 0);
+        createMuscle(polyGeo, 'glute_r', 0.9, 0.5, -0.7, 1.2, 1.3, 0.8, 0.2, 0, 0);
+        createMuscle(polyGeo, 'pelvis', 0, 0.5, 0.3, 1.6, 1.1, 0.7);
 
         // Thighs (Quads & Hamstrings)
-        createMuscle(cylGeo, 'quad_l', -1.2, -1.8, 0.4, 1.3, 3.5, 1.2, -0.1, 0, 0.05);
-        createMuscle(cylGeo, 'quad_r', 1.2, -1.8, 0.4, 1.3, 3.5, 1.2, -0.1, 0, -0.05);
-        createMuscle(cylGeo, 'ham_l', -1.2, -1.8, -0.4, 1.1, 3.5, 1.1, 0.1, 0, 0.05);
-        createMuscle(cylGeo, 'ham_r', 1.2, -1.8, -0.4, 1.1, 3.5, 1.1, 0.1, 0, -0.05);
+        createMuscle(cylGeo, 'quad_l', -1.1, -1.8, 0.4, 1.1, 3.5, 1.0, -0.1, 0, 0.05);
+        createMuscle(cylGeo, 'quad_r', 1.1, -1.8, 0.4, 1.1, 3.5, 1.0, -0.1, 0, -0.05);
+        createMuscle(cylGeo, 'ham_l', -1.1, -1.8, -0.3, 0.9, 3.5, 0.9, 0.1, 0, 0.05);
+        createMuscle(cylGeo, 'ham_r', 1.1, -1.8, -0.3, 0.9, 3.5, 0.9, 0.1, 0, -0.05);
 
         // Knees
-        createMuscle(polyGeo, 'knee_l', -1.2, -3.8, 0.5, 0.7, 0.7, 0.6);
-        createMuscle(polyGeo, 'knee_r', 1.2, -3.8, 0.5, 0.7, 0.7, 0.6);
+        createMuscle(polyGeo, 'knee_l', -1.1, -3.8, 0.5, 0.6, 0.6, 0.5);
+        createMuscle(polyGeo, 'knee_r', 1.1, -3.8, 0.5, 0.6, 0.6, 0.5);
 
         // Calves
-        createMuscle(cylGeo, 'calf_l', -1.2, -5.5, -0.2, 1.0, 2.8, 1.1);
-        createMuscle(cylGeo, 'calf_r', 1.2, -5.5, -0.2, 1.0, 2.8, 1.1);
+        createMuscle(cylGeo, 'calf_l', -1.1, -5.5, -0.2, 0.9, 2.8, 0.9);
+        createMuscle(cylGeo, 'calf_r', 1.1, -5.5, -0.2, 0.9, 2.8, 0.9);
 
         // Shins (Tibialis)
-        createMuscle(cylGeo, 'shin_l', -1.2, -5.5, 0.3, 0.6, 2.8, 0.6);
-        createMuscle(cylGeo, 'shin_r', 1.2, -5.5, 0.3, 0.6, 2.8, 0.6);
+        createMuscle(cylGeo, 'shin_l', -1.1, -5.5, 0.3, 0.5, 2.8, 0.5);
+        createMuscle(cylGeo, 'shin_r', 1.1, -5.5, 0.3, 0.5, 2.8, 0.5);
 
         // Feet
-        createMuscle(polyGeo, 'foot_l', -1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
-        createMuscle(polyGeo, 'foot_r', 1.2, -7.2, 0.5, 0.8, 0.4, 1.5);
+        createMuscle(polyGeo, 'foot_l', -1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
+        createMuscle(polyGeo, 'foot_r', 1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
 
         // Raycasting for Tooltips
         this.raycaster = new THREE.Raycaster();
@@ -549,9 +549,40 @@ const app = {
         container.addEventListener('mousemove', onMouseMove);
 
         // Animation Loop
+        this.clock = new THREE.Clock();
         const animate = () => {
             requestAnimationFrame(animate);
             this.controls.update();
+
+            const elapsedTime = this.clock.getElapsedTime();
+
+            // Contract and expand muscles (breathing/flexing effect)
+            if (this.bodyParts) {
+                Object.values(this.bodyParts).forEach(part => {
+                    const muscle = part.mesh;
+                    // Slight breathing effect for all
+                    let scaleFactor = 1.0 + Math.sin(elapsedTime * 2) * 0.02;
+
+                    // Exaggerate contraction if it is an active/highlighted muscle
+                    if (muscle.material.color.getHex() === 0xef4444) { // Primary Mover color (High)
+                        scaleFactor = 1.0 + Math.abs(Math.sin(elapsedTime * 5)) * 0.15;
+                    } else if (muscle.material.color.getHex() === 0x3b82f6) { // Secondary Mover (Mod)
+                        scaleFactor = 1.0 + Math.abs(Math.sin(elapsedTime * 5)) * 0.08;
+                    }
+
+                    // Apply scale (retaining original base scale stored in userData)
+                    if (!muscle.userData.baseScale) {
+                        muscle.userData.baseScale = muscle.scale.clone();
+                    }
+
+                    muscle.scale.set(
+                        muscle.userData.baseScale.x * scaleFactor,
+                        muscle.userData.baseScale.y * scaleFactor,
+                        muscle.userData.baseScale.z * scaleFactor
+                    );
+                });
+            }
+
             this.renderer.render(this.scene, this.camera);
         };
         animate();
