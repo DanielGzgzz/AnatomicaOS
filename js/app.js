@@ -406,22 +406,22 @@ const app = {
         createMuscle(polyGeo, 'delt_r', 2.5, 5.0, 0, 1.0, 1.2, 1.0, 0, 0, -0.5);
 
         // Upper Arm (Bicep/Tricep)
-        createMuscle(cylGeo, 'bicep_l', -3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, 0.4);
-        createMuscle(cylGeo, 'bicep_r', 3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, -0.4);
-        createMuscle(cylGeo, 'tricep_l', -3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, 0.4);
-        createMuscle(cylGeo, 'tricep_r', 3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, -0.4);
+        createMuscle(cylGeo, 'bicep_l', -3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, -0.4);
+        createMuscle(cylGeo, 'bicep_r', 3.2, 3.8, 0.2, 0.8, 1.8, 0.7, 0, 0, 0.4);
+        createMuscle(cylGeo, 'tricep_l', -3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, -0.4);
+        createMuscle(cylGeo, 'tricep_r', 3.2, 3.8, -0.3, 0.7, 1.8, 0.6, 0, 0, 0.4);
 
         // Elbow Joints
-        createMuscle(polyGeo, 'elbow_l', -3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, 0.4);
-        createMuscle(polyGeo, 'elbow_r', 3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, -0.4);
+        createMuscle(polyGeo, 'elbow_l', -3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, -0.4);
+        createMuscle(polyGeo, 'elbow_r', 3.8, 2.8, -0.1, 0.6, 0.6, 0.6, 0, 0, 0.4);
 
         // Forearms
-        createMuscle(cylGeo, 'forearm_l', -4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
-        createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, -0.3);
+        createMuscle(cylGeo, 'forearm_l', -4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, -0.3);
+        createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
-        createMuscle(polyGeo, 'hand_r', 4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
+        createMuscle(polyGeo, 'hand_l', -4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
+        createMuscle(polyGeo, 'hand_r', 4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
 
         // 5. Lower Body (Slimmer)
         // Glutes / Pelvis
@@ -553,35 +553,6 @@ const app = {
         const animate = () => {
             requestAnimationFrame(animate);
             this.controls.update();
-
-            const elapsedTime = this.clock.getElapsedTime();
-
-            // Contract and expand muscles (breathing/flexing effect)
-            if (this.bodyParts) {
-                Object.values(this.bodyParts).forEach(part => {
-                    const muscle = part.mesh;
-                    // Slight breathing effect for all
-                    let scaleFactor = 1.0 + Math.sin(elapsedTime * 2) * 0.02;
-
-                    // Exaggerate contraction if it is an active/highlighted muscle
-                    if (muscle.material.color.getHex() === 0xef4444) { // Primary Mover color (High)
-                        scaleFactor = 1.0 + Math.abs(Math.sin(elapsedTime * 5)) * 0.15;
-                    } else if (muscle.material.color.getHex() === 0x3b82f6) { // Secondary Mover (Mod)
-                        scaleFactor = 1.0 + Math.abs(Math.sin(elapsedTime * 5)) * 0.08;
-                    }
-
-                    // Apply scale (retaining original base scale stored in userData)
-                    if (!muscle.userData.baseScale) {
-                        muscle.userData.baseScale = muscle.scale.clone();
-                    }
-
-                    muscle.scale.set(
-                        muscle.userData.baseScale.x * scaleFactor,
-                        muscle.userData.baseScale.y * scaleFactor,
-                        muscle.userData.baseScale.z * scaleFactor
-                    );
-                });
-            }
 
             this.renderer.render(this.scene, this.camera);
         };
