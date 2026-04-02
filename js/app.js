@@ -791,7 +791,7 @@ const app = {
                 this.bodyParts[p].mesh.rotation.copy(this.basePositions[p].rot);
             });
         }
-    }
+    },
 
     updateWebGLVisualizer() {
         if (!this.state.schedule || !this.state.webglInitialized) return;
