@@ -16,36 +16,35 @@ const app = {
         console.log("Anatomica OS Initialized");
     },
 
-    // Navigation Logic
-    showModule(moduleId) {
-        // Update navigation buttons
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if(btn.dataset.target === moduleId) {
-                btn.classList.add('active');
-            }
-        });
+    // Wizard Logic
+    nextWizardStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+        document.getElementById(`wizard-step-${step}`).style.display = 'block';
+    },
 
-        // Show/Hide modules
-        document.querySelectorAll('.module').forEach(mod => {
-            mod.style.display = 'none';
-            mod.classList.remove('active');
-        });
+    prevWizardStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.style.display = 'none');
+        document.getElementById(`wizard-step-${step}`).style.display = 'block';
+    },
 
-        const targetModule = document.getElementById(moduleId);
-        if (targetModule) {
-            targetModule.style.display = 'block';
-            targetModule.classList.add('active');
-            this.state.activeModule = moduleId;
+    loadDemoData() {
+        // Populate standard inputs
+        document.getElementById('gender').value = 'male';
+        document.getElementById('weight').value = '85';
+        document.getElementById('height').value = '180';
+        document.getElementById('age').value = '30';
+        document.getElementById('injury').value = 'none';
 
-            // Trigger specific module renders if data exists
-            if(moduleId === 'visualizer' && this.state.schedule) {
-                setTimeout(() => {
-                    this.initWebGL();
-                    this.updateWebGLVisualizer();
-                }, 100); // Small delay to allow container to size properly after display:block
-            }
-        }
+        document.getElementById('strength-load').value = '120';
+        document.getElementById('aerobic-pace').value = '5.0';
+        document.getElementById('anaerobic-intervals').value = '8';
+
+        // Automatically show the second step and generate schedule
+        this.nextWizardStep(2);
+        this.generateSchedule();
+
+        // Show visualizer immediately
+        this.showModule('visualizer');
     },
 
     // Biometric & Performance Engine Logic
@@ -275,6 +274,39 @@ const app = {
         }
     },
 
+    showModule(moduleId) {
+        // Update navigation buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if(btn.dataset.target === moduleId) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Show/Hide modules
+        document.querySelectorAll('.module').forEach(mod => {
+            mod.style.display = 'none';
+            mod.classList.remove('active');
+        });
+
+        const targetModule = document.getElementById(moduleId);
+        if (targetModule) {
+            targetModule.style.display = 'block';
+            targetModule.classList.add('active');
+            this.state.activeModule = moduleId;
+
+            // Trigger specific module renders if data exists
+            if(moduleId === 'visualizer') {
+                setTimeout(() => {
+                    this.initWebGL();
+                    if(this.state.schedule) {
+                        this.updateWebGLVisualizer();
+                    }
+                }, 100); // Small delay to allow container to size properly after display:block
+            }
+        }
+    },
+
     initWebGL() {
         if (this.state.webglInitialized) return;
 
@@ -286,10 +318,10 @@ const app = {
 
         // Scene Setup
         this.scene = new THREE.Scene();
-        // Add subtle grid to floor
-        const gridHelper = new THREE.GridHelper(20, 20, 0x111827, 0x111827);
-        gridHelper.position.y = -5;
-        this.scene.add(gridHelper);
+        // Add dynamic grid to floor
+        this.gridHelper = new THREE.GridHelper(40, 40, 0x10b981, 0x111827);
+        this.gridHelper.position.y = -8;
+        this.scene.add(this.gridHelper);
 
         // Camera Setup
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
@@ -324,16 +356,39 @@ const app = {
         // Build Procedural Geometry (Faceted Star Trac Style)
         this.bodyParts = {};
 
-        // Material factory for glowing wireframe edges and solid faces
+        // Material factory for X-Ray Diagnostic Shaders
         const createCyberMaterial = () => {
-            return new THREE.MeshPhongMaterial({
-                color: 0x374151, // Cyber gray base
-                emissive: 0x000000,
-                specular: 0x111111,
-                shininess: 30,
-                flatShading: true,
+            return new THREE.ShaderMaterial({
+                uniforms: {
+                    glowColor: { value: new THREE.Color(0x374151) }
+                },
+                vertexShader: `
+                    varying vec3 vNormal;
+                    varying vec3 vViewPosition;
+                    void main() {
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        vNormal = normalize(normalMatrix * normal);
+                        vViewPosition = -mvPosition.xyz;
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vNormal;
+                    varying vec3 vViewPosition;
+                    uniform vec3 glowColor;
+                    void main() {
+                        vec3 normal = normalize(vNormal);
+                        vec3 viewDir = normalize(vViewPosition);
+                        float rim = 1.0 - max(dot(viewDir, normal), 0.0);
+                        rim = smoothstep(0.4, 1.0, rim);
+                        vec4 baseColor = vec4(glowColor, 0.2);
+                        vec4 rimColor = vec4(glowColor, 1.0) * pow(rim, 2.0) * 1.5;
+                        gl_FragColor = baseColor + rimColor;
+                    }
+                `,
                 transparent: true,
-                opacity: 0.8
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
             });
         };
 
@@ -365,8 +420,20 @@ const app = {
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x9ca3af, linewidth: 1 }));
             mesh.add(line);
 
+            // Add motion trail capability
+            const trailGeo = new THREE.BufferGeometry();
+            const trailMat = new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.5 });
+            const trailLine = new THREE.Line(trailGeo, trailMat);
+            this.scene.add(trailLine);
+
             this.scene.add(mesh);
-            this.bodyParts[name] = { mesh: mesh, line: line };
+            this.bodyParts[name] = {
+                mesh: mesh,
+                line: line,
+                trailLine: trailLine,
+                trailPositions: [],
+                maxTrailPoints: 15
+            };
         };
 
         // Geometries for detailed faceted look (low poly spheres/cylinders act as muscle bellies)
@@ -548,11 +615,66 @@ const app = {
 
         container.addEventListener('mousemove', onMouseMove);
 
-        // Animation Loop
+        // Animation & Procedural Motion Setup
         this.clock = new THREE.Clock();
+        this.time = 0;
+
+        // Setup initial default positions to allow interpolation
+        this.basePositions = {};
+        Object.keys(this.bodyParts).forEach(key => {
+            this.basePositions[key] = {
+                pos: this.bodyParts[key].mesh.position.clone(),
+                rot: this.bodyParts[key].mesh.rotation.clone()
+            };
+        });
+
+        // Current and target states for animations
+        this.animState = 'idle';
+        this.animProgress = 0;
+
         const animate = () => {
             requestAnimationFrame(animate);
+            const delta = this.clock.getDelta();
+            this.time += delta;
             this.controls.update();
+
+            // Simple procedural motion (breathing/idle) applied to everything
+            const breath = Math.sin(this.time * 2) * 0.05;
+
+            // Dynamic Grid effect
+            if (this.gridHelper) {
+                this.gridHelper.position.z = (this.time * 2) % 1;
+            }
+
+            // Procedural IK & Exercise Animation Logic
+            this.updateProceduralMotion(delta, breath);
+
+            // Update Motion Trails (specifically for hands/feet during movement)
+            if (this.animState !== 'idle') {
+                ['hand_l', 'hand_r', 'foot_l', 'foot_r', 'head'].forEach(p => {
+                    if(this.bodyParts[p]) {
+                        const part = this.bodyParts[p];
+                        part.trailPositions.push(part.mesh.position.clone());
+                        if(part.trailPositions.length > part.maxTrailPoints) {
+                            part.trailPositions.shift();
+                        }
+                        if(part.trailPositions.length > 1) {
+                            part.trailLine.geometry.setFromPoints(part.trailPositions);
+                            part.trailLine.geometry.attributes.position.needsUpdate = true;
+                            // Match color to glow color
+                            part.trailLine.material.color.copy(part.mesh.material.uniforms.glowColor.value);
+                            part.trailLine.visible = true;
+                        }
+                    }
+                });
+            } else {
+                ['hand_l', 'hand_r', 'foot_l', 'foot_r', 'head'].forEach(p => {
+                    if(this.bodyParts[p]) {
+                        this.bodyParts[p].trailLine.visible = false;
+                        this.bodyParts[p].trailPositions = [];
+                    }
+                });
+            }
 
             this.renderer.render(this.scene, this.camera);
         };
@@ -568,6 +690,108 @@ const app = {
 
         this.state.webglInitialized = true;
     },
+
+    updateProceduralMotion(delta, breath) {
+        // Simple state machine for procedural exercises
+        if (!this.bodyParts['head']) return;
+
+        // Apply breathing as base
+        this.bodyParts['pec_l'].mesh.position.z = this.basePositions['pec_l'].pos.z + breath;
+        this.bodyParts['pec_r'].mesh.position.z = this.basePositions['pec_r'].pos.z + breath;
+        this.bodyParts['abs_1l'].mesh.position.z = this.basePositions['abs_1l'].pos.z + breath * 0.5;
+        this.bodyParts['abs_1r'].mesh.position.z = this.basePositions['abs_1r'].pos.z + breath * 0.5;
+
+        // Define exercise targets based on this.animState
+        let targetOffsets = {};
+
+        if (this.animState === 'squat') {
+            const phase = Math.sin(this.time * 2.5); // -1 to 1
+            const drop = (phase > 0 ? phase : 0) * 2.0; // 0 to 2 down
+            const hinge = (phase > 0 ? phase : 0) * 0.5; // bend forward
+
+            // Lower body (IK simulation via procedural transforms)
+            // Move pelvis and torso down
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
+
+            torsoParts.forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
+                }
+            });
+
+            // Bend knees outward and quads down
+            ['quad_l', 'ham_l'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
+                }
+            });
+            ['quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
+                }
+            });
+
+            // Calves stay relatively planted
+            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
+                }
+            });
+            ['knee_l', 'knee_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0; // approximate IK joint
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
+                }
+            });
+
+        } else if (this.animState === 'press') {
+            const phase = Math.sin(this.time * 3); // -1 to 1
+            const push = (phase > 0 ? phase : 0);
+
+            // Move arms forward
+            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1;
+                }
+            });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
+                }
+            });
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
+                }
+            });
+
+            // reset lower body
+            const allParts = Object.keys(this.bodyParts);
+            allParts.forEach(p => {
+                if(!['hand_l', 'hand_r', 'forearm_l', 'forearm_r', 'elbow_l', 'elbow_r', 'bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].includes(p)) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
+                }
+            });
+        } else {
+            // Reset to base positions
+            Object.keys(this.bodyParts).forEach(p => {
+                // Keep the breath offset for pecs/abs handled at top, reset rest
+                if(!['pec_l','pec_r','abs_1l','abs_1r'].includes(p)) {
+                    this.bodyParts[p].mesh.position.copy(this.basePositions[p].pos);
+                }
+                this.bodyParts[p].mesh.rotation.copy(this.basePositions[p].rot);
+            });
+        }
+    }
 
     updateWebGLVisualizer() {
         if (!this.state.schedule || !this.state.webglInitialized) return;
@@ -592,8 +816,7 @@ const app = {
         const setPartColor = (part, stateName) => {
             const c = colors[stateName];
             if(this.bodyParts[part]) {
-                this.bodyParts[part].mesh.material.color.setHex(c.fill);
-                this.bodyParts[part].mesh.material.emissive.setHex(c.emit);
+                this.bodyParts[part].mesh.material.uniforms.glowColor.value.setHex(c.fill);
                 this.bodyParts[part].line.material.color.setHex(c.line);
             }
         };
@@ -612,16 +835,35 @@ const app = {
         // Reset all to base
         Object.keys(this.bodyParts).forEach(p => setPartColor(p, 'base'));
 
+        // Highlight compromises if requested (Interactive Integration)
+        if (this.state.biometrics && this.state.biometrics.injury) {
+            const comp = this.state.biometrics.injury;
+            if (comp === 'knee') {
+                setPartColor('knee_l', 'high');
+                setPartColor('knee_r', 'high');
+            } else if (comp === 'shoulder') {
+                setPartColor('delt_l', 'high');
+                setPartColor('delt_r', 'high');
+            } else if (comp === 'lower_back') {
+                setPartColor('lower_back', 'high');
+            }
+        }
+
         let equipmentHTML = "";
+
+        // Setup state variables based on exercise to trigger procedural motion in animate loop
+        this.animState = 'idle';
 
         // Apply specific highlighting logic mapped to detailed muscle groups
         if (day.phase === 'Recovery') {
+            this.animState = 'idle';
             allMuscles.forEach(p => setPartColor(p, 'rec'));
             equipmentHTML = `
                 <li><strong>Modality:</strong> Foam Roller / Massage Gun</li>
                 <li><strong>Protocol:</strong> Static stretching, parasympathetic breathing (CNS Downregulation).</li>
             `;
         } else if (day.focus.includes('Lower Body')) {
+            this.animState = 'squat';
             const state = day.intensity === 'High' ? 'high' : 'mod';
             lowerFront.forEach(p => setPartColor(p, state));
             lowerBack.forEach(p => setPartColor(p, state));
@@ -634,6 +876,7 @@ const app = {
                 <li><strong>Alternative:</strong> Dumbbell Bulgarian Split Squats</li>
             `;
         } else if (day.focus.includes('Upper Body')) {
+            this.animState = 'press';
             const state = day.intensity === 'High' ? 'high' : 'mod';
             upperFront.forEach(p => setPartColor(p, state));
             upperBack.forEach(p => setPartColor(p, state));
@@ -688,6 +931,7 @@ const app = {
                 <li><strong>Muscle Focus:</strong> Rectus Abdominis, Transverse Abdominis, Obliques.</li>
             `;
         } else if (day.focus.includes('Maximal Output')) {
+            this.animState = 'squat'; // Represent heavy lifts with squat for now
             const state = day.intensity === 'High' ? 'high' : 'mod';
             lowerBack.forEach(p => setPartColor(p, state)); // Glutes/Hams for Deadlift
             lowerFront.forEach(p => setPartColor(p, state)); // Quads for Squat
@@ -875,11 +1119,26 @@ const app = {
 
         const reqList = document.getElementById('juicer-daily-reqs');
         reqList.innerHTML = `
-            <li>Magnesium: ${reqs.magnesium} mg</li>
-            <li>Potassium: ${reqs.potassium} mg</li>
-            <li>Calcium: ${reqs.calcium} mg</li>
-            <li>Iron: ${reqs.iron} mg</li>
-            <li>Zinc: ${reqs.zinc} mg</li>
+            <li style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Magnesium:</span> <span>${reqs.magnesium} mg</span></div>
+                <progress value="45" max="100" style="width: 100%; height: 6px;"></progress>
+            </li>
+            <li style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Potassium:</span> <span>${reqs.potassium} mg</span></div>
+                <progress value="60" max="100" style="width: 100%; height: 6px;"></progress>
+            </li>
+            <li style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Calcium:</span> <span>${reqs.calcium} mg</span></div>
+                <progress value="90" max="100" style="width: 100%; height: 6px;"></progress>
+            </li>
+            <li style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Iron:</span> <span>${reqs.iron} mg</span></div>
+                <progress value="75" max="100" style="width: 100%; height: 6px;"></progress>
+            </li>
+            <li style="margin-bottom: 0.5rem;">
+                <div style="display: flex; justify-content: space-between;"><span>Zinc:</span> <span>${reqs.zinc} mg</span></div>
+                <progress value="85" max="100" style="width: 100%; height: 6px;"></progress>
+            </li>
         `;
         document.getElementById('juicer-baseline-req').style.display = 'block';
 
@@ -944,6 +1203,30 @@ const app = {
         const recipeBox = document.getElementById('juicer-recipe');
 
         outContainer.style.display = 'block';
+
+        // Calculate Top 3 Staples based on deficits
+        let staples = [];
+        if (missing.leafy) staples.push("Fresh Spinach/Kale (Folate, Iron)");
+        if (missing.meat) staples.push("Lean Meats / Fortified B12 sources (Zinc, B12)");
+        if (missing.tubers) staples.push("Potatoes / Bananas (Potassium)");
+        if (missing.dairy) staples.push("Greek Yogurt / Fortified Milk (Calcium)");
+        if (missing.sun) staples.push("Vitamin D3 Supplements");
+        if (staples.length > 3) staples = staples.slice(0, 3);
+
+        // Populate Top 3 Staples UI
+        const staplesList = document.getElementById('juicer-staples-list');
+        if(staplesList) {
+            staplesList.innerHTML = '';
+            if (staples.length === 0) {
+                staplesList.innerHTML = '<li>You are covered on basic staples.</li>';
+            } else {
+                staples.forEach(s => {
+                    const li = document.createElement('li');
+                    li.innerText = s;
+                    staplesList.appendChild(li);
+                });
+            }
+        }
 
         if (deficits.length === 0) {
             deficitsList.innerHTML = '<li>No major clinical deficits identified based on inputs.</li>';
