@@ -93,69 +93,72 @@ const app = {
         const powerMax = { phase: "Strength", focus: "Maximal Output (Bench/Squat/Deadlift 1RM-3RM)", intensity: "High" };
         const powerAccessory = { phase: "Strength", focus: "Powerlifting Accessory Blocks", intensity: "Moderate" };
 
-        let microcycle = [];
+        let microcycles = [];
 
-        // 1. Determine Goal-Based Base Sequence (Breaking 7-day construct)
+        // 1. Determine Goal-Based Base Sequence Alternatives (Breaking 7-day construct)
         if (bio.goal === 'weight_loss') {
-            // Aggressive weight loss: 5-day repeating high frequency, lower intensity
-            microcycle = [
-                strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive
-            ];
+            // Aggressive weight loss
+            microcycles.push([strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive]);
+            microcycles.push([aerobicTempo, strengthFull, aerobicLiss, recoveryActive, anaerobicSprints]);
+            microcycles.push([strengthLower, anaerobicJump, strengthUpper, aerobicLiss, recoveryPassive]);
         } else if (bio.goal === 'hypertrophy') {
-            // Hypertrophy: 8-day repeating volume cycle
-            microcycle = [
-                strengthLower, recoveryActive, strengthUpper, recoveryActive,
-                strengthFull, aerobicLiss, anaerobicSprints, recoveryPassive
-            ];
+            // Hypertrophy
+            microcycles.push([strengthLower, recoveryActive, strengthUpper, recoveryActive, strengthFull, aerobicLiss, anaerobicSprints, recoveryPassive]);
+            microcycles.push([strengthUpper, strengthLower, recoveryActive, strengthFull, anaerobicSprints, recoveryActive, recoveryPassive]);
+            microcycles.push([strengthFull, recoveryActive, strengthUpper, strengthLower, aerobicTempo, recoveryActive, recoveryPassive]);
         } else if (bio.goal === 'calisthenics') {
-            // Calisthenics: 6-day repeating skill & strength
-            microcycle = [
-                caliUpper, caliCore, strengthLower, aerobicLiss, caliUpper, recoveryActive
-            ];
+            // Calisthenics
+            microcycles.push([caliUpper, caliCore, strengthLower, aerobicLiss, caliUpper, recoveryActive]);
+            microcycles.push([caliCore, caliUpper, aerobicTempo, strengthLower, caliCore, recoveryActive]);
+            microcycles.push([strengthLower, caliUpper, aerobicLiss, caliCore, caliUpper, recoveryPassive]);
         } else if (bio.goal === 'powerlifting') {
-            // Powerlifting: 7-day CNS focused cycle
-            microcycle = [
-                powerMax, recoveryActive, powerAccessory, recoveryPassive,
-                powerMax, powerAccessory, recoveryPassive
-            ];
+            // Powerlifting
+            microcycles.push([powerMax, recoveryActive, powerAccessory, recoveryPassive, powerMax, powerAccessory, recoveryPassive]);
+            microcycles.push([powerMax, powerAccessory, recoveryPassive, powerMax, recoveryActive, powerAccessory, recoveryPassive]);
+            microcycles.push([powerAccessory, powerMax, recoveryActive, powerAccessory, powerMax, recoveryPassive, recoveryPassive]);
         } else {
-            // Conditioning / Athletic: 6-day repeating
-            microcycle = [
-                anaerobicSprints, strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive
-            ];
+            // Conditioning / Athletic
+            microcycles.push([anaerobicSprints, strengthFull, aerobicLiss, anaerobicJump, strengthUpper, recoveryActive]);
+            microcycles.push([aerobicTempo, anaerobicJump, strengthLower, anaerobicSprints, strengthUpper, recoveryActive]);
+            microcycles.push([strengthFull, anaerobicSprints, aerobicLiss, strengthFull, anaerobicJump, recoveryPassive]);
         }
 
-        // 2. Injury Adjustments & Rest Protocols
+        // 2. Injury Adjustments & Rest Protocols (apply to all alternatives)
         if (bio.injury !== 'none') {
-            microcycle = microcycle.map(day => {
-                if (bio.injury === 'knee' && day.focus.includes('Lower Body')) {
-                    return { ...day, focus: "Upper Body Isolation / Core", intensity: "Moderate" };
-                }
-                if (bio.injury === 'knee' && day.focus.includes('Jump Rope')) {
-                    return { ...day, focus: "Rowing / Swimming (Low Impact)", intensity: "Moderate" };
-                }
-                if (bio.injury === 'shoulder' && day.focus.includes('Upper Body')) {
-                    return { ...day, focus: "Lower Body Machine Isolation", intensity: "Moderate" };
-                }
-                if (bio.injury === 'shoulder' && day.focus.includes('Boxing')) {
-                    return { ...day, focus: "Stationary Bike Intervals", intensity: "High" };
-                }
-                if (bio.injury === 'lower_back' && day.focus.includes('Structural')) {
-                    return { ...day, focus: "Machine Isolation / Support", intensity: "Low" };
-                }
-                return day;
+            microcycles = microcycles.map(microcycle => {
+                let adjusted = microcycle.map(day => {
+                    if (bio.injury === 'knee' && day.focus.includes('Lower Body')) {
+                        return { ...day, focus: "Upper Body Isolation / Core", intensity: "Moderate" };
+                    }
+                    if (bio.injury === 'knee' && day.focus.includes('Jump Rope')) {
+                        return { ...day, focus: "Rowing / Swimming (Low Impact)", intensity: "Moderate" };
+                    }
+                    if (bio.injury === 'shoulder' && day.focus.includes('Upper Body')) {
+                        return { ...day, focus: "Lower Body Machine Isolation", intensity: "Moderate" };
+                    }
+                    if (bio.injury === 'shoulder' && day.focus.includes('Boxing')) {
+                        return { ...day, focus: "Stationary Bike Intervals", intensity: "High" };
+                    }
+                    if (bio.injury === 'lower_back' && day.focus.includes('Structural')) {
+                        return { ...day, focus: "Machine Isolation / Support", intensity: "Low" };
+                    }
+                    return day;
+                });
+                adjusted.push(recoveryPassive);
+                return adjusted;
             });
-            // Force extra recovery day at the end of microcycle for injuries
-            microcycle.push(recoveryPassive);
         }
 
         // Add day labels based on array length
-        let schedule = microcycle.map((day, idx) => ({
-            day: `Day ${idx + 1}`,
-            ...day
-        }));
+        let schedules = microcycles.map(microcycle => {
+            return microcycle.map((day, idx) => ({
+                day: `Day ${idx + 1}`,
+                ...day
+            }));
+        });
 
-        this.state.schedule = schedule;
+        // Use Alternative 1 for primary logic/visualizer
+        this.state.schedule = schedules[0];
 
         // Update other modules based on new schedule
         this.updateKinesiologyProtocol();
@@ -166,18 +169,24 @@ const app = {
         const tbody = document.getElementById('schedule-tbody');
         tbody.innerHTML = '';
 
-        schedule.forEach(day => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${day.day}</strong></td>
-                <td><span class="status-badge ${day.phase === 'Recovery' ? 'status-ok' : (day.intensity==='High'?'status-alert':'status-warn')}">${day.phase}</span></td>
-                <td>${day.focus}</td>
-                <td>${day.intensity}</td>
-            `;
-            tbody.appendChild(tr);
+        schedules.forEach((schedule, index) => {
+            const separator = document.createElement('tr');
+            separator.innerHTML = `<td colspan="4" style="background-color: #1f2937; color: #60a5fa; text-align: center; font-weight: bold; border-top: 1px solid #374151;">Alternative Plan ${index + 1}</td>`;
+            tbody.appendChild(separator);
+
+            schedule.forEach(day => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${day.day}</strong></td>
+                    <td><span class="status-badge ${day.phase === 'Recovery' ? 'status-ok' : (day.intensity==='High'?'status-alert':'status-warn')}">${day.phase}</span></td>
+                    <td>${day.focus}</td>
+                    <td>${day.intensity}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         });
 
-        document.getElementById('schedule-summary').innerText = `Generated ${schedule.length}-day repeating microcycle tailored to macrocycle goals, factoring in joint integrity and performance benchmarks.`;
+        document.getElementById('schedule-summary').innerText = `Generated 3 alternative repeating microcycles tailored to macrocycle goals, factoring in joint integrity and performance benchmarks.`;
         document.getElementById('schedule-output').style.display = 'block';
     },
 
@@ -400,6 +409,10 @@ const app = {
         createMuscle(cylGeo, 'bicep_r', 3.2, 3.5, 0.3, 0.8, 2.0, 0.8, 0, 0, -0.2);
         createMuscle(cylGeo, 'tricep_l', -3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, 0.2);
         createMuscle(cylGeo, 'tricep_r', 3.2, 3.5, -0.3, 0.7, 2.0, 0.7, 0, 0, -0.2);
+
+        // Elbow Joints
+        createMuscle(polyGeo, 'elbow_l', -3.5, 2.6, 0, 0.6, 0.6, 0.6, 0, 0, 0);
+        createMuscle(polyGeo, 'elbow_r', 3.5, 2.6, 0, 0.6, 0.6, 0.6, 0, 0, 0);
 
         // Forearms
         createMuscle(cylGeo, 'forearm_l', -3.8, 1.5, 0.2, 0.7, 2.2, 0.6, 0, 0, 0.1);
@@ -736,7 +749,9 @@ const app = {
             sun: document.getElementById('miss-sun').checked,
             beets: document.getElementById('miss-beets').checked,
             berries: document.getElementById('miss-berries').checked,
-            spices: document.getElementById('miss-spices').checked
+            spices: document.getElementById('miss-spices').checked,
+            high_acidity: document.getElementById('high-acidity').checked,
+            sugar_limit: document.getElementById('sugar-limit').checked
         };
 
         // Calculate Daily Intake Requirements based on biometrics & schedule intensity
@@ -847,15 +862,37 @@ const app = {
         // Render Deficits
         deficitsList.innerHTML = deficits.map(d => `<li>${d} deficit detected.</li>`).join('');
 
+        // Check for modifications based on limitations (Sugar & Acidity)
+        let fruitCount = ingredients.filter(i => i.includes('Orange') || i.includes('Apple') || i.includes('Banana') || i.includes('Berries')).length;
+
+        if (missing.sugar_limit) {
+            // Remove high sugar items if possible, or warn
+            ingredients = ingredients.filter(i => !i.includes('Banana') && !i.includes('Apple'));
+            if (missing.citrus) {
+                ingredients = ingredients.filter(i => !i.includes('Orange'));
+                ingredients.push("1/2 Lemon (Low sugar Vitamin C substitute)");
+            }
+            ingredients.push("Limit added fruits. Prioritize green vegetables.");
+        }
+
         // Render Recipe
-        // Always add a sweetener/base if it's too hardcore
-        if (!ingredients.join('').includes('Orange') && !ingredients.join('').includes('Milk')) {
+        // Always add a sweetener/base if it's too hardcore and no sugar limits
+        if (!ingredients.join('').includes('Orange') && !ingredients.join('').includes('Milk') && !missing.sugar_limit && fruitCount === 0) {
             ingredients.push("1 Apple (for palatability and pectin)");
+        }
+
+        let warnings = [];
+        if (missing.sugar_limit) {
+             warnings.push("<span style='color: #b91c1c;'>Sugar Limit Active: Fruits have been minimized or removed. Ensure you do not add sweeteners.</span>");
+        }
+        if (missing.high_acidity) {
+             warnings.push("<span style='color: #b91c1c;'>Acidity Alert: Dilute recipe with 1-2 cups of water. Consider adding Cucumber or Celery to increase alkalinity. Avoid adding excess citrus if it triggers discomfort.</span>");
         }
 
         let recipeHTML = `
             <strong style="color: #166534; font-family: var(--font-mono);">Targeted Restorative Juicer Translation</strong>
             <p style="font-size: 0.85rem; margin-top: 0.5rem; color: #166534;">Blend the following components until entirely homogenized. Consume immediately to prevent oxidation of water-soluble vitamins.</p>
+            ${warnings.length > 0 ? `<div style="margin-top: 0.5rem; font-size: 0.85rem; font-weight: bold;">${warnings.join('<br>')}</div>` : ''}
             <ul style="margin-top: 0.5rem; padding-left: 1.5rem; font-size: 0.9rem; color: #1f2937;">
                 ${ingredients.map(i => `<li>${i}</li>`).join('')}
             </ul>
