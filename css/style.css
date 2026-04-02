@@ -206,8 +206,6 @@ body {
 }
 
 canvas {
-    border: 1px dashed #ccc;
-    background-color: white;
     touch-action: none;
 }
 

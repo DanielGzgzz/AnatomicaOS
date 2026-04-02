@@ -356,6 +356,10 @@ const app = {
         // Build Procedural Geometry (Faceted Star Trac Style)
         this.bodyParts = {};
 
+        // Root group for Micro-Sway
+        this.bodyGroup = new THREE.Group();
+        this.scene.add(this.bodyGroup);
+
         // Material factory for X-Ray Diagnostic Shaders
         const createCyberMaterial = () => {
             return new THREE.ShaderMaterial({
@@ -416,29 +420,36 @@ const app = {
             mesh.rotation.set(rx, ry, rz);
             mesh.userData = { name: name }; // Store internal name for raycasting
 
-            const edges = new THREE.EdgesGeometry(geo);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x9ca3af, linewidth: 1 }));
-            mesh.add(line);
+            // Render as dense point cloud instead of wireframe lines
+            const pointsMat = new THREE.PointsMaterial({
+                color: 0x9ca3af,
+                size: 0.05,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            const points = new THREE.Points(geo, pointsMat);
+            mesh.add(points);
 
             // Add motion trail capability
             const trailGeo = new THREE.BufferGeometry();
             const trailMat = new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.5 });
             const trailLine = new THREE.Line(trailGeo, trailMat);
-            this.scene.add(trailLine);
+            this.bodyGroup.add(trailLine);
 
-            this.scene.add(mesh);
+            this.bodyGroup.add(mesh);
             this.bodyParts[name] = {
                 mesh: mesh,
-                line: line,
+                points: points, // Used to be line
                 trailLine: trailLine,
                 trailPositions: [],
                 maxTrailPoints: 15
             };
         };
 
-        // Geometries for detailed faceted look (low poly spheres/cylinders act as muscle bellies)
-        const polyGeo = new THREE.IcosahedronGeometry(1, 1); // Low poly faceted sphere
-        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 6); // Hexagonal cylinder
+        // Geometries for dense point cloud look
+        const polyGeo = new THREE.IcosahedronGeometry(1, 4); // High poly sphere for dense points
+        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 8); // High detail cylinder
 
         // 1. Head & Neck
         createMuscle(polyGeo, 'head', 0, 7.5, 0, 1.2, 1.5, 1.3);
@@ -538,6 +549,21 @@ const app = {
         container.style.position = 'relative'; // Ensure relative positioning for absolute tooltip
         container.appendChild(this.tooltip);
 
+        // Floating UI Label for active group
+        this.activeLabel = document.createElement('div');
+        this.activeLabel.style.position = 'absolute';
+        this.activeLabel.style.color = '#ef4444'; // Red for active
+        this.activeLabel.style.padding = '4px 8px';
+        this.activeLabel.style.borderLeft = '2px solid #ef4444';
+        this.activeLabel.style.pointerEvents = 'none';
+        this.activeLabel.style.display = 'none';
+        this.activeLabel.style.zIndex = '900';
+        this.activeLabel.style.fontFamily = 'monospace';
+        this.activeLabel.style.fontSize = '10px';
+        this.activeLabel.style.textShadow = '0 0 5px rgba(0,0,0,1)';
+        this.activeLabel.innerText = "ACTIVE_MOVER";
+        container.appendChild(this.activeLabel);
+
         // Muscle name dictionary map
         const muscleNames = {
             'head': 'Cranium / Facial Muscles',
@@ -624,9 +650,49 @@ const app = {
         Object.keys(this.bodyParts).forEach(key => {
             this.basePositions[key] = {
                 pos: this.bodyParts[key].mesh.position.clone(),
-                rot: this.bodyParts[key].mesh.rotation.clone()
+                rot: this.bodyParts[key].mesh.rotation.clone(),
+                scale: this.bodyParts[key].mesh.scale.clone()
             };
         });
+
+        // JSON-based Exercise Recipes for Animation (Relative Offsets)
+        this.exerciseRecipes = {
+            squat: {
+                start: { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 },
+                mid:   { yDrop: 2.0, bend: 0.5, kneeOut: 0.4 },
+                end:   { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 }
+            },
+            press: {
+                start: { push: 0.0 },
+                mid:   { push: 1.0 },
+                end:   { push: 0.0 }
+            }
+        };
+
+        // Setup Contact Shadow
+        const canvasShadow = document.createElement('canvas');
+        canvasShadow.width = 128;
+        canvasShadow.height = 128;
+        const contextShadow = canvasShadow.getContext('2d');
+        const gradient = contextShadow.createRadialGradient(canvasShadow.width / 2, canvasShadow.height / 2, 0, canvasShadow.width / 2, canvasShadow.height / 2, canvasShadow.width / 2);
+        gradient.addColorStop(0.1, 'rgba(16,185,129,0.3)'); // Cyber green shadow
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');
+        contextShadow.fillStyle = gradient;
+        contextShadow.fillRect(0, 0, canvasShadow.width, canvasShadow.height);
+
+        const shadowTexture = new THREE.CanvasTexture(canvasShadow);
+        const shadowMaterial = new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+        const shadowGeo = new THREE.PlaneGeometry(15, 15);
+        this.contactShadow = new THREE.Mesh(shadowGeo, shadowMaterial);
+        this.contactShadow.rotation.x = -Math.PI / 2;
+        this.contactShadow.position.y = -7.9; // Just above grid
+        this.scene.add(this.contactShadow);
+
+        // Setup Kinematic Chain (Vector Overlays)
+        this.kinematicChainGeo = new THREE.BufferGeometry();
+        this.kinematicChainMat = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.8 });
+        this.kinematicChainLine = new THREE.Line(this.kinematicChainGeo, this.kinematicChainMat);
+        this.scene.add(this.kinematicChainLine);
 
         // Current and target states for animations
         this.animState = 'idle';
@@ -641,13 +707,74 @@ const app = {
             // Simple procedural motion (breathing/idle) applied to everything
             const breath = Math.sin(this.time * 2) * 0.05;
 
-            // Dynamic Grid effect
+            // Procedural IK & Exercise Animation Logic
+            this.updateProceduralMotion(delta, breath);
+
+            // Update Floating UI Label
+            if (this.animState !== 'idle' && this.state.schedule) {
+                let targetPart = null;
+                if (this.animState === 'squat' && this.bodyParts['quad_l']) {
+                    targetPart = this.bodyParts['quad_l'].mesh;
+                    this.activeLabel.innerText = "QUADRICEPS_FEMORIS [ACTIVE]";
+                } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
+                    targetPart = this.bodyParts['pec_l'].mesh;
+                    this.activeLabel.innerText = "PECTORALIS_MAJOR [ACTIVE]";
+                }
+
+                if (targetPart) {
+                    const vector = new THREE.Vector3();
+                    // Get world position of the target part
+                    targetPart.getWorldPosition(vector);
+                    // Project to 2D screen space
+                    vector.project(this.camera);
+
+                    const x = (vector.x * .5 + .5) * container.clientWidth;
+                    const y = (vector.y * -.5 + .5) * container.clientHeight;
+
+                    this.activeLabel.style.left = `${x + 20}px`;
+                    this.activeLabel.style.top = `${y - 20}px`;
+                    this.activeLabel.style.display = 'block';
+                }
+            } else {
+                this.activeLabel.style.display = 'none';
+            }
+
+            // Update Dynamic Grid and Contact Shadow
             if (this.gridHelper) {
                 this.gridHelper.position.z = (this.time * 2) % 1;
             }
 
-            // Procedural IK & Exercise Animation Logic
-            this.updateProceduralMotion(delta, breath);
+            // Update Kinematic Chain Overlay
+            if (this.bodyParts['head']) {
+                // Draw line through center spine
+                const chainPoints = [
+                    this.bodyParts['head'].mesh.position.clone(),
+                    this.bodyParts['neck'].mesh.position.clone(),
+                    this.bodyParts['pec_l'].mesh.position.clone().lerp(this.bodyParts['pec_r'].mesh.position, 0.5), // sternum
+                    this.bodyParts['abs_2l'].mesh.position.clone().lerp(this.bodyParts['abs_2r'].mesh.position, 0.5), // navel
+                    this.bodyParts['pelvis'].mesh.position.clone()
+                ];
+
+                // Add arms to chain if pressing
+                if (this.animState === 'press') {
+                    chainPoints.push(
+                        this.bodyParts['elbow_l'].mesh.position.clone(),
+                        this.bodyParts['hand_l'].mesh.position.clone()
+                    );
+                }
+                // Add legs to chain if squatting
+                if (this.animState === 'squat') {
+                    chainPoints.push(
+                        this.bodyParts['knee_l'].mesh.position.clone(),
+                        this.bodyParts['foot_l'].mesh.position.clone()
+                    );
+                }
+
+                // Transform local points to world points considering bodyGroup sway
+                chainPoints.forEach(p => p.applyMatrix4(this.bodyGroup.matrixWorld));
+
+                this.kinematicChainLine.geometry.setFromPoints(chainPoints);
+            }
 
             // Update Motion Trails (specifically for hands/feet during movement)
             if (this.animState !== 'idle') {
@@ -692,7 +819,7 @@ const app = {
     },
 
     updateProceduralMotion(delta, breath) {
-        // Simple state machine for procedural exercises
+        // Simple state machine for procedural exercises using interpolated keyframes
         if (!this.bodyParts['head']) return;
 
         // Apply breathing as base
@@ -701,16 +828,36 @@ const app = {
         this.bodyParts['abs_1l'].mesh.position.z = this.basePositions['abs_1l'].pos.z + breath * 0.5;
         this.bodyParts['abs_1r'].mesh.position.z = this.basePositions['abs_1r'].pos.z + breath * 0.5;
 
-        // Define exercise targets based on this.animState
-        let targetOffsets = {};
+        // Procedural Life: Micro-Sway
+        // Apply very slow, low-amplitude noise/rotation to the entire body group
+        this.bodyGroup.rotation.y = Math.sin(this.time * 0.5) * 0.05;
+        this.bodyGroup.rotation.z = Math.cos(this.time * 0.3) * 0.02;
+
+        // Procedural Life: Breathing Scale
+        const breathScale = 1.0 + Math.sin(this.time * 2) * 0.02; // 1.0 to 1.02
+        ['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].forEach(p => {
+            if(this.bodyParts[p]) {
+                this.bodyParts[p].mesh.scale.set(
+                    this.bodyParts[p].mesh.scale.x, // keep orig (actually it's scaled in create, but we're modifying absolute here, wait)
+                    // It's safer to read from initial scale. Let's add initial scale to basePositions
+                    this.basePositions[p].scale.y * breathScale,
+                    this.basePositions[p].scale.z * breathScale
+                );
+            }
+        });
+
+        // Interpolation helper
+        const lerp = (start, end, alpha) => start + (end - start) * alpha;
 
         if (this.animState === 'squat') {
-            const phase = Math.sin(this.time * 2.5); // -1 to 1
-            const drop = (phase > 0 ? phase : 0) * 2.0; // 0 to 2 down
-            const hinge = (phase > 0 ? phase : 0) * 0.5; // bend forward
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
+            const recipe = this.exerciseRecipes.squat;
 
-            // Lower body (IK simulation via procedural transforms)
-            // Move pelvis and torso down
+            // Interpolate values
+            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
+            const hinge = lerp(recipe.start.bend, recipe.mid.bend, phase);
+            const kneeRot = lerp(recipe.start.kneeOut, recipe.mid.kneeOut, phase);
+
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
 
             torsoParts.forEach(p => {
@@ -720,22 +867,14 @@ const app = {
             });
 
             // Bend knees outward and quads down
-            ['quad_l', 'ham_l'].forEach(p => {
+            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
-                }
-            });
-            ['quad_r', 'ham_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - kneeRot;
                 }
             });
 
-            // Calves stay relatively planted
             ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
@@ -745,14 +884,17 @@ const app = {
             });
             ['knee_l', 'knee_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0; // approximate IK joint
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
                 }
             });
 
         } else if (this.animState === 'press') {
-            const phase = Math.sin(this.time * 3); // -1 to 1
-            const push = (phase > 0 ? phase : 0);
+            const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
+            const recipe = this.exerciseRecipes.press;
+
+            // Interpolate values
+            const push = lerp(recipe.start.push, recipe.mid.push, phase);
 
             // Move arms forward
             ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
@@ -784,7 +926,6 @@ const app = {
         } else {
             // Reset to base positions
             Object.keys(this.bodyParts).forEach(p => {
-                // Keep the breath offset for pecs/abs handled at top, reset rest
                 if(!['pec_l','pec_r','abs_1l','abs_1r'].includes(p)) {
                     this.bodyParts[p].mesh.position.copy(this.basePositions[p].pos);
                 }
@@ -817,7 +958,10 @@ const app = {
             const c = colors[stateName];
             if(this.bodyParts[part]) {
                 this.bodyParts[part].mesh.material.uniforms.glowColor.value.setHex(c.fill);
-                this.bodyParts[part].line.material.color.setHex(c.line);
+                // Also intensify the glow of points slightly based on state
+                this.bodyParts[part].points.material.color.setHex(c.line);
+                this.bodyParts[part].points.material.size = (stateName === 'high') ? 0.08 : 0.05;
+                this.bodyParts[part].points.material.opacity = (stateName === 'high') ? 0.9 : 0.6;
             }
         };
 
