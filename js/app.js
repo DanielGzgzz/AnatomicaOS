@@ -416,22 +416,26 @@ const app = {
 
         // Helper to create detailed positioned muscles
         const createMuscle = (geo, name, x, y, z, sx, sy, sz, rx=0, ry=0, rz=0) => {
-            const material = new THREE.MeshStandardMaterial({
-                color: 0x222222,
-                roughness: 0.4,
-                metalness: 0.7,
+            // Using Phong material instead of Standard for a starker contrast and solid non-metallic look
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x050505, // very dark base
+                emissive: 0x000000,
+                specular: 0x222222,
+                shininess: 10,
+                flatShading: true
             });
 
             const mesh = new THREE.Mesh(geo, material);
             mesh.scale.set(sx, sy, sz);
             mesh.position.set(x, y, z);
             mesh.rotation.set(rx, ry, rz);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            // No shadows
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+
             mesh.userData = {
                 name: name,
-                baseScale: new THREE.Vector3(sx, sy, sz),
-                baseColor: 0x222222
+                baseScale: new THREE.Vector3(sx, sy, sz)
             }; // Store internal name and base properties for raycasting and inflation
 
             // Add motion trail capability
@@ -450,8 +454,8 @@ const app = {
         };
 
         // Geometries for solid component look
-        const polyGeo = new THREE.IcosahedronGeometry(1, 2); // Lower poly for solid components looks cleaner
-        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 1);
+        const polyGeo = new THREE.IcosahedronGeometry(1, 3);
+        const cylGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 16, 4);
 
         // 1. Head & Neck
         createMuscle(polyGeo, 'head', 0, 7.5, 0, 1.2, 1.5, 1.3);
@@ -820,7 +824,7 @@ const app = {
                             part.trailLine.geometry.setFromPoints(part.trailPositions);
                             part.trailLine.geometry.attributes.position.needsUpdate = true;
                             // Match color to glow color
-                            part.trailLine.material.color.copy(part.mesh.material.uniforms.glowColor.value);
+                            part.trailLine.material.color.copy(part.mesh.material.color);
                             part.trailLine.visible = true;
                         }
                     }
@@ -1032,8 +1036,14 @@ const app = {
         const setPartColor = (part, stateName) => {
             const c = colors[stateName];
             if(this.bodyParts[part]) {
-                // Update color for MeshStandardMaterial
-                this.bodyParts[part].mesh.material.color.setHex(c.fill);
+                if (stateName === 'base') {
+                     this.bodyParts[part].mesh.material.color.setHex(0x050505);
+                     this.bodyParts[part].mesh.material.emissive.setHex(0x000000);
+                } else {
+                     this.bodyParts[part].mesh.material.color.setHex(c.fill);
+                     this.bodyParts[part].mesh.material.emissive.setHex(c.fill);
+                     this.bodyParts[part].mesh.material.emissiveIntensity = 0.5;
+                }
             }
         };
 
