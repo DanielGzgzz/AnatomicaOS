@@ -181,11 +181,14 @@
             <div class="module-content" id="visualizer-content">
                 <div class="grid-2">
                     <div>
-                        <div class="form-group mb-1">
+                                                <div class="form-group mb-1">
                             <label for="vis-day-select">Select Protocol Phase to Isolate</label>
-                            <select id="vis-day-select" onchange="app.updateWebGLVisualizer()">
-                                <option value="">-- Generate Protocol First --</option>
-                            </select>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <select id="vis-day-select" onchange="app.updateWebGLVisualizer()" style="flex-grow: 1;">
+                                    <option value="">-- Generate Protocol First --</option>
+                                </select>
+                                <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset</button>
+                            </div>
                         </div>
                         <div class="result-card mt-1" id="vis-details" style="display:none; background: #111827; color: #e5e7eb; border: 1px solid #374151;">
                             <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">System Diagnostics</h4>

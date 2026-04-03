@@ -354,6 +354,16 @@ const app = {
         tour.start();
     },
 
+    resetCamera() {
+        if (this.camera && this.controls) {
+            // Reset to initial position
+            this.camera.position.set(0, 5, 18);
+            this.camera.lookAt(0, 0, 0);
+            this.controls.target.set(0, 0, 0);
+            this.controls.update();
+        }
+    },
+
     initWebGL() {
         if (this.state.webglInitialized) return;
 
@@ -382,12 +392,17 @@ const app = {
         container.appendChild(this.renderer.domElement);
 
         // Controls
-        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.enablePan = false;
         this.controls.minDistance = 5;
         this.controls.maxDistance = 25;
+        // Limit polar angle to prevent looking from below the floor
+        this.controls.maxPolarAngle = Math.PI / 2 + 0.1;
+        // Enable auto-rotation for a "showroom" effect
+        this.controls.autoRotate = true;
+        this.controls.autoRotateSpeed = 1.5;
 
         // Lights
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
