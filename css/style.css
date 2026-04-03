@@ -277,3 +277,39 @@ canvas {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.25rem;
 }
+
+/* Custom Intro.js Styles */
+.custom-intro-tooltip {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-main);
+}
+.custom-intro-tooltip .introjs-tooltiptext {
+    color: var(--text-primary);
+}
+.custom-intro-tooltip .introjs-arrow.top {
+    border-bottom-color: var(--border-color) !important;
+}
+.custom-intro-tooltip .introjs-arrow.top-middle {
+    border-bottom-color: var(--border-color) !important;
+}
+.custom-intro-tooltip .introjs-arrow.top-right {
+    border-bottom-color: var(--border-color) !important;
+}
+.custom-intro-tooltip .introjs-button {
+    background-color: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    text-shadow: none !important;
+    background-image: none !important;
+}
+.custom-intro-tooltip .introjs-button:hover {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border-color: var(--primary-color) !important;
+}
+.custom-intro-tooltip .introjs-skipbutton {
+    color: var(--text-secondary) !important;
+}

@@ -307,6 +307,53 @@ const app = {
         }
     },
 
+    startTour() {
+        const tour = introJs();
+        tour.setOptions({
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: false,
+            exitOnEsc: false,
+            tooltipClass: 'custom-intro-tooltip'
+        });
+
+        tour.onbeforechange(function(targetElement) {
+            const step = this._currentStep;
+
+            // Step 1: Nav, Step 2: Biometrics (ensure biometrics is shown)
+            if (step === 0 || step === 1 || step === 2) {
+                app.showModule('biometrics');
+            }
+
+            // Step 3 (index 2) triggers load demo data so subsequent steps have data
+            if (step === 2 && !app.state.schedule) {
+                app.loadDemoData();
+            }
+
+            // Step 4 (Kinesiology)
+            if (step === 3) {
+                app.showModule('kinesiology');
+            }
+
+            // Step 5 & 6 (Visualizer)
+            if (step === 4 || step === 5) {
+                app.showModule('visualizer');
+            }
+
+            // Step 7 (Nutrition)
+            if (step === 6) {
+                app.showModule('nutrition');
+            }
+
+            // Step 8 (Juicer)
+            if (step === 7) {
+                app.showModule('juicer');
+            }
+        });
+
+        tour.start();
+    },
+
     initWebGL() {
         if (this.state.webglInitialized) return;
 
