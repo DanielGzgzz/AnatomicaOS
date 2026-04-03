@@ -80,7 +80,7 @@ const app = {
         // Base scheduling blocks
         const strengthLower = { phase: "Strength", focus: "Lower Body (Squat/Deadlift)", intensity: "High" };
         const strengthUpper = { phase: "Strength", focus: "Upper Body Push/Pull", intensity: "Moderate" };
-        const strengthFull = { phase: "Strength", focus: "Full Body Structural", intensity: "High" };
+                const strengthFull = { phase: "Strength", focus: "Full Body Strength", intensity: "High" };
         const aerobicLiss = { phase: "Aerobic", focus: "Zone 2 Cardio (Jump Rope / Jog)", intensity: "Low" };
         const aerobicTempo = { phase: "Aerobic", focus: "Tempo Run / Boxing Flow", intensity: "Moderate" };
         const anaerobicSprints = { phase: "Anaerobic", focus: "Heavy Bag Boxing / Sprints", intensity: "High" };
@@ -504,8 +504,8 @@ const app = {
         createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
-        createMuscle(polyGeo, 'hand_r', 4.6, 0.8, 0.6, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
+        createMuscle(polyGeo, 'hand_l', -4.6, 0.5, 0.5, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
+        createMuscle(polyGeo, 'hand_r', 4.6, 0.5, 0.5, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
 
         // 5. Lower Body (Slimmer)
         // Glutes / Pelvis
@@ -691,7 +691,7 @@ const app = {
         };
 
         // JSON-based Exercise Recipes for Animation (Relative Offsets)
-        this.exerciseRecipes = {
+                this.exerciseRecipes = {
             squat: {
                 start: { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 },
                 mid:   { yDrop: 2.0, bend: 0.5, kneeOut: 0.4 },
@@ -701,6 +701,11 @@ const app = {
                 start: { push: 0.0 },
                 mid:   { push: 1.0 },
                 end:   { push: 0.0 }
+            },
+            fullbody: {
+                start: { yDrop: 0.0, bend: 0.0, push: 0.0 },
+                mid:   { yDrop: 1.5, bend: 0.4, push: 0.8 },
+                end:   { yDrop: 0.0, bend: 0.0, push: 0.0 }
             }
         };
 
@@ -746,7 +751,7 @@ const app = {
             this.updateProceduralMotion(delta, breath);
 
             // Update Floating UI Label
-            if (this.animState !== 'idle' && this.state.schedule) {
+                        if (this.animState !== 'idle' && this.state.schedule) {
                 let targetPart = null;
                 if (this.animState === 'squat' && this.bodyParts['quad_l']) {
                     targetPart = this.bodyParts['quad_l'].mesh;
@@ -754,6 +759,9 @@ const app = {
                 } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
                     targetPart = this.bodyParts['pec_l'].mesh;
                     this.activeLabel.innerText = "PECTORALIS_MAJOR [ACTIVE]";
+                } else if (this.animState === 'fullbody' && this.bodyParts['delt_l']) {
+                    targetPart = this.bodyParts['delt_l'].mesh;
+                    this.activeLabel.innerText = "FULL_KINETIC_CHAIN [ACTIVE]";
                 }
 
                 if (targetPart) {
@@ -797,8 +805,8 @@ const app = {
                         this.bodyParts['hand_l'].mesh.position.clone()
                     );
                 }
-                // Add legs to chain if squatting
-                if (this.animState === 'squat') {
+                                // Add legs to chain if squatting
+                if (this.animState === 'squat' || this.animState === 'fullbody') {
                     chainPoints.push(
                         this.bodyParts['knee_l'].mesh.position.clone(),
                         this.bodyParts['foot_l'].mesh.position.clone()
@@ -968,7 +976,7 @@ const app = {
                 }
             });
 
-        } else if (this.animState === 'press') {
+                } else if (this.animState === 'press') {
             const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
             const recipe = this.exerciseRecipes.press;
 
@@ -1000,6 +1008,64 @@ const app = {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
+                }
+            });
+        } else if (this.animState === 'fullbody') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
+            const recipe = this.exerciseRecipes.fullbody;
+
+            // Interpolate values
+            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
+            const push = lerp(recipe.start.push, recipe.mid.push, phase);
+
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r'];
+
+            torsoParts.forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
+                }
+            });
+
+            // Bend knees outward and quads down
+            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.2;
+                }
+            });
+
+            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
+                }
+            });
+            ['knee_l', 'knee_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
+                }
+            });
+
+            // Move arms up and forward (like a thruster)
+            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 3;
+                }
+            });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.5;
+                }
+            });
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.0;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
                 }
             });
         } else {
@@ -1101,7 +1167,7 @@ const app = {
                 <li><strong>Secondary:</strong> STAR TRAC™ Instinct Leg Extension / Curl (Isolates Quads/Hamstrings)</li>
                 <li><strong>Alternative:</strong> Dumbbell Bulgarian Split Squats</li>
             `;
-        } else if (day.focus.includes('Upper Body')) {
+                } else if (day.focus.includes('Upper Body')) {
             this.animState = 'press';
             const state = day.intensity === 'High' ? 'high' : 'mod';
             upperFront.forEach(p => setPartColor(p, state));
@@ -1113,6 +1179,21 @@ const app = {
             equipmentHTML = `
                 <li><strong>Primary:</strong> STAR TRAC™ Inspiration Chest Press (Pecs/Delts) / Lat Pulldown (Lats/Biceps)</li>
                 <li><strong>Secondary:</strong> Dual Adjustable Pulley Cable Crossovers</li>
+            `;
+        } else if (day.focus.includes('Full Body Strength')) {
+            this.animState = 'fullbody';
+            const state = day.intensity === 'High' ? 'high' : 'mod';
+            upperFront.forEach(p => setPartColor(p, state));
+            upperBack.forEach(p => setPartColor(p, state));
+            shoulders.forEach(p => setPartColor(p, state));
+            arms.forEach(p => setPartColor(p, state));
+            lowerFront.forEach(p => setPartColor(p, state));
+            lowerBack.forEach(p => setPartColor(p, state));
+            joints.forEach(p => setPartColor(p, 'mod'));
+            equipmentHTML = `
+                <li><strong>Primary:</strong> Barbell Thrusters / Clean and Press (Full Chain Engagement)</li>
+                <li><strong>Secondary:</strong> Hex Bar Deadlifts (Glutes/Hamstrings/Core/Traps)</li>
+                <li><strong>Alternative:</strong> STAR TRAC™ Max Rack Multi-Joint Compound Movements</li>
             `;
         } else if (day.focus.includes('Jump Rope')) {
             const state = day.intensity === 'High' ? 'high' : 'mod';
