@@ -165,6 +165,10 @@ const app = {
         this.updateNutritionModule();
 
         // Render Schedule UI
+
+        // Keep track of index for linking to visualizer
+        schedules[0].forEach((day, i) => day.originalIndex = i);
+
         const tbody = document.getElementById('schedule-tbody');
         tbody.innerHTML = '';
 
@@ -175,6 +179,9 @@ const app = {
 
             schedule.forEach(day => {
                 const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.title = 'Click to view mechanics in 3D Visualizer';
+                tr.onclick = () => this.viewExerciseInVisualizer(day.originalIndex);
                 tr.innerHTML = `
                     <td><strong>${day.day}</strong></td>
                     <td><span class="status-badge ${day.phase === 'Recovery' ? 'status-ok' : (day.intensity==='High'?'status-alert':'status-warn')}">${day.phase}</span></td>
@@ -190,6 +197,15 @@ const app = {
     },
 
     // Tri-Phasic Kinesiology Protocol
+
+    viewExerciseInVisualizer(dayIndex) {
+        this.showModule('visualizer');
+        const select = document.getElementById('vis-day-select');
+        select.value = dayIndex;
+        // manually dispatch change event to trigger update
+        select.dispatchEvent(new Event('change'));
+    },
+
     updateKinesiologyProtocol() {
         if (!this.state.schedule) return;
 
@@ -243,6 +259,9 @@ const app = {
         restTable.forEach(item => {
             const requiredRest = Math.round(item.base * item.intensityMultiplier[highestIntensity]);
             const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.title = 'Click to view mechanics in 3D Visualizer';
+                tr.onclick = () => this.viewExerciseInVisualizer(day.originalIndex);
             tr.innerHTML = `
                 <td style="font-family: var(--font-mono);">${item.system}</td>
                 <td><strong>${requiredRest}</strong> hours</td>
@@ -571,8 +590,8 @@ const app = {
         createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -4.5, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
-        createMuscle(polyGeo, 'hand_r', 4.5, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
+        createMuscle(polyGeo, 'hand_l', -4.3, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
+        createMuscle(polyGeo, 'hand_r', 4.3, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
 
         // 5. Lower Body (Slimmer)
         // Glutes / Pelvis

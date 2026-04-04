@@ -14,6 +14,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/intro.js/7.2.0/intro.min.js"></script>
 
     <style>
+
+        /* Intro.js Transparency Fix */
+        .introjs-tooltip {
+            background-color: #ffffff !important;
+            opacity: 1 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+        }
+        .introjs-helperLayer {
+            opacity: 0.8 !important;
+            background-color: rgba(0,0,0,0.5) !important;
+        }
+        .introjs-overlay {
+            opacity: 0.5 !important;
+        }
+
         /* Switch styling */
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
@@ -301,51 +316,90 @@
                         <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Custom Juicer Builder</h3>
                         <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select ingredients to build your juice. The system will analyze sugar, micronutrients, acidity, and provide a hazard/benefit report.</p>
 
+
                         <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0;">
-                            <h4 style="color: #334155; margin-bottom: 0.5rem;">Ingredients (Select Quantities)</h4>
-                            <div class="grid-2" style="gap: 0.5rem;">
+                            <h4 style="color: #334155; margin-bottom: 0.5rem;">Ingredients (Input Units or Grams)</h4>
+                            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Values will automatically convert based on average weights.</p>
+                            <div class="grid-2" style="gap: 1rem;">
                                 <!-- Vegetables -->
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Beetroot (1 medium)</label>
-                                    <input type="number" id="ing-beetroot" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Beetroot</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-beetroot" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('beetroot', 'unit')">
+                                            <input type="number" id="ing-beetroot-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('beetroot', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Carrot</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-carrot" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('carrot', 'unit')">
+                                            <input type="number" id="ing-carrot-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('carrot', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Celery</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-celery" min="0" placeholder="Stalks" style="width: 50px;" oninput="app.syncJuicerInput('celery', 'unit')">
+                                            <input type="number" id="ing-celery-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('celery', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Spinach</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-spinach" min="0" placeholder="Cups" style="width: 50px;" oninput="app.syncJuicerInput('spinach', 'unit')">
+                                            <input type="number" id="ing-spinach-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('spinach', 'g')">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Carrot (1 large)</label>
-                                    <input type="number" id="ing-carrot" min="0" max="10" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Celery (1 stalk)</label>
-                                    <input type="number" id="ing-celery" min="0" max="10" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Spinach (1 cup)</label>
-                                    <input type="number" id="ing-spinach" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <!-- Fruits -->
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Apple (1 medium)</label>
-                                    <input type="number" id="ing-apple" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Orange (1 medium)</label>
-                                    <input type="number" id="ing-orange" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <!-- Aromatics / Citrus -->
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Lemon (1/2 fruit)</label>
-                                    <input type="number" id="ing-lemon" min="0" max="4" value="0" style="width: 60px;" onchange="app.calculateJuice()">
-                                </div>
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                    <label>Ginger (1 inch)</label>
-                                    <input type="number" id="ing-ginger" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                <!-- Fruits & Aromatics -->
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Apple</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-apple" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('apple', 'unit')">
+                                            <input type="number" id="ing-apple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('apple', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Orange</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-orange" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('orange', 'unit')">
+                                            <input type="number" id="ing-orange-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('orange', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Lemon</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-lemon" min="0" placeholder="Halves" style="width: 50px;" oninput="app.syncJuicerInput('lemon', 'unit')">
+                                            <input type="number" id="ing-lemon-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('lemon', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Ginger</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-ginger" min="0" placeholder="Inches" style="width: 50px;" oninput="app.syncJuicerInput('ginger', 'unit')">
+                                            <input type="number" id="ing-ginger-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('ginger', 'g')">
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+                            <button type="button" class="btn-primary mt-1" style="width: 100%; margin-top: 1rem; background: #be185d;" onclick="app.calculateJuice()">Mix Juice</button>
                         </div>
+
                     </div>
 
                     <div id="juicer-output">
                         <div class="result-card" id="juicer-analysis-card" style="display: none;">
-                            <h4 style="margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">Nutritional Profile</h4>
+
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">
+                                <h4 style="margin: 0;">Nutritional Profile</h4>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">Pigment:</span>
+                                    <div id="juice-color-swatch" style="width: 24px; height: 24px; border-radius: 50%; background: #e5e7eb; border: 1px solid #d1d5db; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);"></div>
+                                </div>
+                            </div>
+
 
                             <!-- Macros / Warning -->
                             <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; align-items: center;">
