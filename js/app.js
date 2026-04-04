@@ -320,7 +320,7 @@ const app = {
         tour.onbeforechange(function(targetElement) {
             const step = this._currentStep;
 
-            // Step 1: Nav, Step 2: Biometrics (ensure biometrics is shown)
+            // Step 1: Nav (0), Step 2: Biometrics (1), Step 3: Demo (2)
             if (step === 0 || step === 1 || step === 2) {
                 app.showModule('biometrics');
             }
@@ -330,23 +330,23 @@ const app = {
                 app.loadDemoData();
             }
 
-            // Step 4 (Kinesiology)
+            // Step 4 (Kinesiology) (index 3)
             if (step === 3) {
                 app.showModule('kinesiology');
             }
 
-            // Step 5 & 6 (Visualizer)
-            if (step === 4 || step === 5) {
+            // Step 5 (Visualizer) (index 4)
+            if (step === 4) {
                 app.showModule('visualizer');
             }
 
-            // Step 7 (Nutrition)
-            if (step === 6) {
+            // Step 6 (Nutrition) (index 5)
+            if (step === 5) {
                 app.showModule('nutrition');
             }
 
-            // Step 8 (Juicer)
-            if (step === 7) {
+            // Step 7 (Juicer) (index 6)
+            if (step === 6) {
                 app.showModule('juicer');
             }
         });
@@ -376,8 +376,12 @@ const app = {
         // Scene Setup
         this.scene = new THREE.Scene();
         // Add dynamic grid to floor
-        this.gridHelper = new THREE.GridHelper(40, 40, 0x10b981, 0x111827);
-        this.gridHelper.position.y = -8;
+        this.gridHelper = new THREE.GridHelper(50, 50, 0x10b981, 0x111827);
+        this.gridHelper.position.y = -8.5;
+        // Disable depth write for grid to prevent z-fighting with trails or contact shadow
+        this.gridHelper.material.depthWrite = false;
+        this.gridHelper.material.transparent = true;
+        this.gridHelper.material.opacity = 0.5;
         this.scene.add(this.gridHelper);
 
         // Camera Setup
@@ -385,9 +389,10 @@ const app = {
         this.camera.position.set(0, 0, 15);
 
         // Renderer Setup
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        this.renderer.setClearColor(0xffffff, 1);
         this.renderer.setSize(width, height);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
         container.appendChild(this.renderer.domElement);
 
@@ -480,7 +485,7 @@ const app = {
         const createMuscle = (geo, name, x, y, z, sx, sy, sz, rx=0, ry=0, rz=0) => {
             // Using Phong material instead of Standard for a starker contrast and solid non-metallic look
             const material = new THREE.MeshPhongMaterial({
-                color: 0x050505, // very dark base
+                color: 0xd2b48c, // meatish/fleshy base
                 emissive: 0x000000,
                 specular: 0x222222,
                 shininess: 10,
@@ -566,8 +571,8 @@ const app = {
         createMuscle(cylGeo, 'forearm_r', 4.2, 1.8, 0.3, 0.6, 1.8, 0.6, -0.2, 0, 0.3);
 
         // Hands
-        createMuscle(polyGeo, 'hand_l', -4.6, 0.5, 0.5, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
-        createMuscle(polyGeo, 'hand_r', 4.6, 0.5, 0.5, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
+        createMuscle(polyGeo, 'hand_l', -4.5, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, -0.3);
+        createMuscle(polyGeo, 'hand_r', 4.5, 0.8, 0.4, 0.4, 0.7, 0.3, -0.2, 0, 0.3);
 
         // 5. Lower Body (Slimmer)
         // Glutes / Pelvis
@@ -960,7 +965,7 @@ const app = {
             if (!['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].includes(key)) {
                 part.mesh.scale.copy(this.basePositions[key].scale);
             }
-            part.mesh.material.color.setHex(0x222222);
+            part.mesh.material.color.setHex(0xd2b48c); // Reset to fleshy color
             part.mesh.material.emissive.setHex(0x000000);
         });
 
@@ -1165,7 +1170,7 @@ const app = {
             const c = colors[stateName];
             if(this.bodyParts[part]) {
                 if (stateName === 'base') {
-                     this.bodyParts[part].mesh.material.color.setHex(0x050505);
+                     this.bodyParts[part].mesh.material.color.setHex(0xd2b48c);
                      this.bodyParts[part].mesh.material.emissive.setHex(0x000000);
                 } else {
                      this.bodyParts[part].mesh.material.color.setHex(c.fill);
@@ -1446,6 +1451,20 @@ const app = {
     },
 
     // The Juicer Translator (Micronutrient Module)
+
+    toggleJuicerTable() {
+        const toggle = document.getElementById('juicer-mode-toggle').checked;
+        const container = document.getElementById('juicer-nutrient-table-container');
+        if (toggle) {
+            container.style.display = 'block';
+            if(this.state.biometrics) {
+                this.translateJuice(); // re-run to populate table if visible
+            }
+        } else {
+            container.style.display = 'none';
+        }
+    },
+
     translateJuice() {
         if (!this.state.biometrics) {
             alert("Please generate a protocol first to calculate specific thresholds.");
@@ -1477,7 +1496,35 @@ const app = {
             else if (highDays > 1) intensityFactor = 1.15;
         }
 
+
+        // Populate the Detailed Nutrient Table if toggle is on
+        if (document.getElementById('juicer-mode-toggle').checked) {
+            const tableBody = document.getElementById('juicer-nutrient-table-body');
+            let tableHTML = "";
+            let fruitVeggieCount = 0;
+
+            if (missing.citrus) { tableHTML += "<tr><td>Citrus</td><td>1</td><td>Vitamin C (150mg)</td><td>166%</td></tr>"; fruitVeggieCount++; }
+            if (missing.leafy) { tableHTML += "<tr><td>Leafy Greens</td><td>1</td><td>Vitamin K / Folate (80mcg)</td><td>100%</td></tr>"; fruitVeggieCount++; }
+            if (missing.nuts) { tableHTML += "<tr><td>Nuts/Seeds</td><td>1</td><td>Magnesium / Zinc (100mg)</td><td>25%</td></tr>"; }
+            if (missing.tubers) { tableHTML += "<tr><td>Tubers</td><td>1</td><td>Potassium (600mg)</td><td>17%</td></tr>"; fruitVeggieCount++; }
+            if (missing.dairy) { tableHTML += "<tr><td>Dairy</td><td>1</td><td>Calcium (300mg)</td><td>30%</td></tr>"; }
+            if (missing.meat) { tableHTML += "<tr><td>Red Meat</td><td>1</td><td>Iron / B12 (3mg)</td><td>15-30%</td></tr>"; }
+            if (missing.sun) { tableHTML += "<tr><td>Sun Exposure</td><td>0</td><td>Vitamin D3 (0 IU)</td><td>0%</td></tr>"; }
+            if (missing.beets) { tableHTML += "<tr><td>Roots/Beets</td><td>1</td><td>Nitrates / Folate (100mcg)</td><td>25%</td></tr>"; fruitVeggieCount++; }
+            if (missing.berries) { tableHTML += "<tr><td>Berries</td><td>1</td><td>Antioxidants / Vit C (50mg)</td><td>55%</td></tr>"; fruitVeggieCount++; }
+            if (missing.spices) { tableHTML += "<tr><td>Spices</td><td>1</td><td>Curcumin / Gingerol</td><td>N/A</td></tr>"; }
+
+            if (tableHTML === "") {
+                tableHTML = "<tr><td colspan='4' style='text-align: center;'>No major deficits selected.</td></tr>";
+            } else {
+                tableHTML += `<tr style="font-weight: bold; color: #60a5fa;"><td colspan="3">Total Fruit/Veggie Categories Missing:</td><td>${fruitVeggieCount}</td></tr>`;
+            }
+
+            tableBody.innerHTML = tableHTML;
+        }
+
         // Base values (RDA) multiplied by intensity/sweat loss
+
         const reqs = {
             magnesium: Math.round((bio.gender === 'male' ? 420 : 320) * intensityFactor),
             potassium: Math.round(3400 * intensityFactor),
