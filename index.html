@@ -289,6 +289,7 @@
         </section>
 
         <!-- The Juicer Translator (Micronutrient Module) -->
+
         <section id="juicer" class="module" style="display: none;" data-intro="Finally, the Juicer module targets your micronutrients, providing specific whole-food smoothie recipes to fill any vitamin gaps." data-step="7">
             <header class="module-header">
                 <h2>The Juicer Translator & Supplement Synthesis</h2>
@@ -297,80 +298,111 @@
             <div class="module-content" id="juicer-content">
                 <div class="grid-2">
                     <div>
+                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Custom Juicer Builder</h3>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select ingredients to build your juice. The system will analyze sugar, micronutrients, acidity, and provide a hazard/benefit report.</p>
 
-                        <div class="result-card mb-1" style="display: flex; justify-content: space-between; align-items: center;">
-                            <h4 style="margin: 0;">Detailed Nutrient Analysis</h4>
-                            <label class="switch">
-                                <input type="checkbox" id="juicer-mode-toggle" onchange="app.toggleJuicerTable()">
-                                <span class="slider round"></span>
-                            </label>
+                        <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                            <h4 style="color: #334155; margin-bottom: 0.5rem;">Ingredients (Select Quantities)</h4>
+                            <div class="grid-2" style="gap: 0.5rem;">
+                                <!-- Vegetables -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Beetroot (1 medium)</label>
+                                    <input type="number" id="ing-beetroot" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Carrot (1 large)</label>
+                                    <input type="number" id="ing-carrot" min="0" max="10" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Celery (1 stalk)</label>
+                                    <input type="number" id="ing-celery" min="0" max="10" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Spinach (1 cup)</label>
+                                    <input type="number" id="ing-spinach" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <!-- Fruits -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Apple (1 medium)</label>
+                                    <input type="number" id="ing-apple" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Orange (1 medium)</label>
+                                    <input type="number" id="ing-orange" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <!-- Aromatics / Citrus -->
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Lemon (1/2 fruit)</label>
+                                    <input type="number" id="ing-lemon" min="0" max="4" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                    <label>Ginger (1 inch)</label>
+                                    <input type="number" id="ing-ginger" min="0" max="5" value="0" style="width: 60px;" onchange="app.calculateJuice()">
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        <div id="juicer-nutrient-table-container" class="result-card mb-1" style="display: none; background: #111827; color: #f9fafb;">
-                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">Deficit to Nutrient Mapping</h4>
-                            <table class="data-table mt-1" style="width: 100%; color: #e5e7eb; font-size: 0.85rem;">
+                    <div id="juicer-output">
+                        <div class="result-card" id="juicer-analysis-card" style="display: none;">
+                            <h4 style="margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.5rem;">Nutritional Profile</h4>
+
+                            <!-- Macros / Warning -->
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem; align-items: center;">
+                                <div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">Total Sugar</div>
+                                    <div id="juice-sugar" style="font-size: 1.5rem; font-weight: bold; font-family: var(--font-mono);">0g</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">Acidity (pH Est)</div>
+                                    <div id="juice-ph" style="font-size: 1.5rem; font-weight: bold; font-family: var(--font-mono);">0.0</div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">Calories</div>
+                                    <div id="juice-cals" style="font-size: 1.5rem; font-weight: bold; font-family: var(--font-mono);">0</div>
+                                </div>
+                            </div>
+
+                            <!-- Hazards & Benefits -->
+                            <div class="grid-2" style="margin-bottom: 1rem;">
+                                <div style="background: #fef2f2; padding: 0.75rem; border-radius: 4px; border-left: 3px solid #ef4444;">
+                                    <h5 style="color: #b91c1c; margin-bottom: 0.5rem;">Hazards / Warnings</h5>
+                                    <ul id="juice-hazards" style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: #991b1b;">
+                                        <!-- Populated via JS -->
+                                    </ul>
+                                </div>
+                                <div style="background: #f0fdf4; padding: 0.75rem; border-radius: 4px; border-left: 3px solid #22c55e;">
+                                    <h5 style="color: #15803d; margin-bottom: 0.5rem;">Clinical Benefits</h5>
+                                    <ul id="juice-benefits" style="margin: 0; padding-left: 1.2rem; font-size: 0.85rem; color: #166534;">
+                                        <!-- Populated via JS -->
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Detailed Table -->
+                            <h5 style="margin-bottom: 0.5rem;">Micronutrients vs RDA</h5>
+                            <table class="data-table" style="width: 100%; font-size: 0.85rem;">
                                 <thead>
                                     <tr>
-                                        <th style="border-bottom: 1px solid #374151;">Ingredient/Missing</th>
-                                        <th style="border-bottom: 1px solid #374151;">Count</th>
-                                        <th style="border-bottom: 1px solid #374151;">Primary Nutrient</th>
-                                        <th style="border-bottom: 1px solid #374151;">RDA % Est.</th>
+                                        <th>Nutrient</th>
+                                        <th>Amount</th>
+                                        <th>% RDA Est.</th>
                                     </tr>
                                 </thead>
-                                <tbody id="juicer-nutrient-table-body">
+                                <tbody id="juice-nutrient-table">
+                                    <!-- Populated via JS -->
                                 </tbody>
                             </table>
                         </div>
 
-                        <h3 class="mb-1" style="margin-bottom: 1rem; font-family: var(--font-mono);">Dietary Assessment</h3>
-                        <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select foods commonly missing from your diet to identify potential micronutrient deficits.</p>
-
-                        <div id="juicer-baseline-req" class="result-card mb-1" style="background: #111827; color: #f9fafb; display: none;">
-                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">Daily Micronutrient Thresholds</h4>
-                            <p style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.5rem;">Adjusted for protocol intensity and estimated basal metabolic sweat loss.</p>
-                            <ul id="juicer-daily-reqs" style="list-style: none; padding-left: 0; font-family: var(--font-mono); font-size: 0.85rem; margin-top: 0.5rem; color: #34d399;">
-                            </ul>
-                        </div>
-
-                        <div id="juicer-staples-card" class="result-card mb-1" style="display: none; background: #fdf2f8; border: 1px solid #fbcfe8;">
-                            <h4 style="color: #be185d;">Top 3 Grocery Staples Required</h4>
-                            <ul id="juicer-staples-list" style="padding-left: 1.5rem; margin-top: 0.5rem; font-size: 0.9rem; color: #831843;"></ul>
-                        </div>
-
-                        <form id="juicer-form" class="clinical-form">
-                            <div class="form-group">
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-citrus" class="juicer-checkbox"> Missing Citrus (Oranges, Lemons)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-leafy" class="juicer-checkbox"> Missing Leafy Greens (Spinach, Kale)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-nuts" class="juicer-checkbox"> Missing Nuts & Seeds (Almonds, Pumpkin Seeds)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-tubers" class="juicer-checkbox"> Missing Tubers/Potassium (Bananas, Potatoes)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-dairy" class="juicer-checkbox"> Missing Dairy (Milk, Yogurt)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-meat" class="juicer-checkbox"> Missing Red Meat (Beef, Liver)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-sun" class="juicer-checkbox"> Lack of Sun Exposure</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-beets" class="juicer-checkbox"> Missing Roots (Beetroot, Carrots)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-berries" class="juicer-checkbox"> Missing Berries (Blueberries, Blackberries)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="miss-spices" class="juicer-checkbox"> Missing Spices/Roots (Ginger, Turmeric)</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="high-acidity" class="juicer-checkbox"> Experiencing High Acidity / Digestive Discomfort</label>
-                                <label style="font-weight:normal;"><input type="checkbox" id="sugar-limit" class="juicer-checkbox"> Strict Sugar Limit (Diabetes / Keto / Weight Loss)</label>
-                            </div>
-                            <button type="button" class="btn-primary" onclick="app.translateJuice()">Run Deficit Analysis</button>
-                        </form>
-                    </div>
-
-                    <div id="juicer-output" style="display: none;">
-                        <div class="result-card">
-                            <h4>Identified Deficits</h4>
-                            <ul id="juicer-deficits" style="margin: 1rem 0; padding-left: 1.5rem; color: #b91c1c; font-weight: bold; font-family: var(--font-mono); font-size: 0.9rem;">
-                            </ul>
-
-                            <h4>Juicer Translation (Restorative Protocol)</h4>
-                            <div id="juicer-recipe" style="margin-top: 1rem; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 4px;">
-                                <!-- Recipe output -->
-                            </div>
+                        <div class="result-card" id="juicer-empty-state">
+                            <p style="text-align: center; color: var(--text-muted); font-style: italic;">Add ingredients to view nutritional breakdown.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
+
     </main>
 
     <footer class="os-footer">
