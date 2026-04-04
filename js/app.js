@@ -376,12 +376,13 @@ const app = {
     resetCamera() {
         if (this.camera && this.controls) {
             // Reset to initial position
-            this.camera.position.set(0, 5, 18);
+            this.camera.position.set(0, 2, 22);
             this.camera.lookAt(0, 0, 0);
             this.controls.target.set(0, 0, 0);
             this.controls.update();
         }
     },
+
 
     initWebGL() {
         if (this.state.webglInitialized) return;
@@ -389,8 +390,14 @@ const app = {
         const container = document.getElementById('webgl-container');
         if (!container) return;
 
-        const width = container.clientWidth || 400;
-        const height = container.clientHeight || 500;
+        // More responsive canvas sizing fitting within viewport minus header/padding
+        let height = window.innerHeight - 250;
+        if (height < 500) height = 500;
+        container.style.minHeight = height + "px";
+        container.style.height = height + "px";
+
+        const width = container.clientWidth;
+
 
         // Scene Setup
         this.scene = new THREE.Scene();
@@ -405,7 +412,7 @@ const app = {
 
         // Camera Setup
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-        this.camera.position.set(0, 0, 15);
+        this.camera.position.set(0, 2, 22); // Zoomed out and slightly raised to show full body
 
         // Renderer Setup
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -1069,85 +1076,23 @@ const app = {
             // Interpolate values
             const push = lerp(recipe.start.push, recipe.mid.push, phase);
 
+
             // Move arms forward
-            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
+            ['forearm_l', 'forearm_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1;
                 }
             });
-            ['elbow_l', 'elbow_r'].forEach(p => {
+            ['hand_l', 'hand_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
-                }
-            });
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2.2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.1;
+                    // Rotate palm to face forward during press (like pushing a barbell)
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * Math.PI/2;
                 }
             });
 
-            // reset lower body
-            const allParts = Object.keys(this.bodyParts);
-            allParts.forEach(p => {
-                if(!['hand_l', 'hand_r', 'forearm_l', 'forearm_r', 'elbow_l', 'elbow_r', 'bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].includes(p)) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
-                }
-            });
-        } else if (this.animState === 'fullbody') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
-            const recipe = this.exerciseRecipes.fullbody;
-
-            // Interpolate values
-            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
-            const push = lerp(recipe.start.push, recipe.mid.push, phase);
-
-            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r'];
-
-            torsoParts.forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
-                }
-            });
-
-            // Bend knees outward and quads down
-            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.2;
-                }
-            });
-
-            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
-                }
-            });
-            ['knee_l', 'knee_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
-                }
-            });
-
-            // Move arms up and forward (like a thruster)
-            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 3;
-                }
-            });
-            ['elbow_l', 'elbow_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.5;
-                }
-            });
             ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.0;
@@ -1165,11 +1110,70 @@ const app = {
         }
     },
 
+
+    playDictionaryExercise() {
+        if (!this.state.webglInitialized) this.initWebGL();
+
+        const dictSelect = document.getElementById('vis-dict-select');
+        const exType = dictSelect.value;
+        if (!exType) return;
+
+        // Reset the phase selector so they don't visually conflict
+        document.getElementById('vis-day-select').value = "";
+
+        // Reset all colors
+        Object.keys(this.bodyParts).forEach(p => {
+             this.bodyParts[p].mesh.material.color.setHex(0xd2b48c);
+             this.bodyParts[p].mesh.material.emissive.setHex(0x000000);
+        });
+
+        // Set the animation state
+        this.animState = exType;
+
+        // Set up the details panel manually
+        document.getElementById('vis-details').style.display = 'block';
+
+        let desc = "";
+        let equipment = "";
+
+        if (exType === 'squat') {
+            desc = "ISOLATING: Lower Body Mechanics | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Back Squat (Targets Quads/Glutes)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'lower_back', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'press') {
+            desc = "ISOLATING: Upper Body Push | INTENSITY: Moderate";
+            equipment = "<li><strong>Primary:</strong> Bench Press / Push-ups (Targets Pecs/Triceps/Front Delts)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['delt_l', 'delt_r', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'fullbody') {
+            desc = "ISOLATING: Full Kinetic Chain | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Thrusters / Clean and Press (Full Chain Engagement)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+        }
+
+        document.getElementById('vis-desc').innerText = desc;
+        document.getElementById('vis-equipment').innerHTML = equipment;
+    },
+
     updateWebGLVisualizer() {
+
         if (!this.state.schedule || !this.state.webglInitialized) return;
 
         const select = document.getElementById('vis-day-select');
         const dayIndex = select.value;
+        document.getElementById('vis-dict-select').value = '';
         if (dayIndex === '') return;
 
         const day = this.state.schedule[dayIndex];

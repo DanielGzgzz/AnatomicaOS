@@ -210,7 +210,20 @@
             <div class="module-content" id="visualizer-content">
                 <div class="grid-2">
                     <div>
+
                                                 <div class="form-group mb-1">
+                            <label for="vis-dict-select">Exercise Dictionary (Direct Override)</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <select id="vis-dict-select" onchange="app.playDictionaryExercise()" style="flex-grow: 1;">
+                                    <option value="">-- Select an exercise to preview --</option>
+                                    <option value="squat">Barbell Squat (Lower Body)</option>
+                                    <option value="press">Bench Press (Upper Body Push)</option>
+                                    <option value="fullbody">Thruster (Full Kinetic Chain)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin: 1rem 0; color: #9ca3af; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;">OR</div>
+<div class="form-group mb-1">
                             <label for="vis-day-select">Select Protocol Phase to Isolate</label>
                             <div style="display: flex; gap: 0.5rem;">
                                 <select id="vis-day-select" onchange="app.updateWebGLVisualizer()" style="flex-grow: 1;">
