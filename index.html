@@ -214,7 +214,12 @@
                             <label for="vis-day-select">Select Protocol Phase to Isolate</label>
                             <div style="display: flex; gap: 0.5rem;">
                                 <select id="vis-day-select" onchange="app.updateWebGLVisualizer()" style="flex-grow: 1;">
-                                    <option value="">-- Generate Protocol First --</option>
+                                    <option value="" disabled selected>Select Exercise from Dictionary...</option>
+                                    <option value="squat">Barbell Back Squat</option>
+                                    <option value="press">Bench Press / Push</option>
+                                    <option value="fullbody">Thruster / Full Body</option>
+                                    <option value="deadlift">Deadlift / Pull</option>
+                                    <option value="idle">Idle / Resting</option>
                                 </select>
                                 <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset</button>
                             </div>
@@ -383,8 +388,46 @@
                                         </div>
                                     </div>
                                 </div>
+                                </div>
+                                <!-- Extended Greens & Roots -->
+                                <div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Cucumber</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-cucumber" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('cucumber', 'unit')">
+                                            <input type="number" id="ing-cucumber-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('cucumber', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Kale</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-kale" min="0" placeholder="Cups" style="width: 50px;" oninput="app.syncJuicerInput('kale', 'unit')">
+                                            <input type="number" id="ing-kale-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('kale', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Mint</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-mint" min="0" placeholder="Leaves" style="width: 50px;" oninput="app.syncJuicerInput('mint', 'unit')">
+                                            <input type="number" id="ing-mint-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('mint', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Potato</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-potato" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('potato', 'unit')">
+                                            <input type="number" id="ing-potato-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('potato', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Pineapple</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-pineapple" min="0" placeholder="Rings" style="width: 50px;" oninput="app.syncJuicerInput('pineapple', 'unit')">
+                                            <input type="number" id="ing-pineapple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('pineapple', 'g')">
+                                        </div>
+                                    </div>
                             </div>
-                            <button type="button" class="btn-primary mt-1" style="width: 100%; margin-top: 1rem; background: #be185d;" onclick="app.calculateJuice()">Mix Juice</button>
+                            <button type="button" class="btn-primary mt-1" style="width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1.1rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onclick="app.calculateJuice()">Mix Juice</button>
                         </div>
 
                     </div>

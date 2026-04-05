@@ -272,23 +272,9 @@ const app = {
 
     // Procedural Anatomy & Biomechanics Visualizer (WebGL)
     updateVisualizerSelect() {
-        const select = document.getElementById('vis-day-select');
-        select.innerHTML = '';
-        if (!this.state.schedule) {
-            select.innerHTML = '<option value="">-- Generate Protocol First --</option>';
-            return;
-        }
-
-        this.state.schedule.forEach((day, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.text = `${day.day} - ${day.phase} (${day.focus})`;
-            select.appendChild(option);
-        });
-
-        // Initial render
+        // The dropdown is now a static dictionary of exercises in HTML.
+        // We just need to trigger the initial render if we are currently in the visualizer view.
         if(this.state.activeModule === 'visualizer') {
-            this.initWebGL();
             this.updateWebGLVisualizer();
         }
     },
@@ -1166,16 +1152,37 @@ const app = {
     },
 
     updateWebGLVisualizer() {
-        if (!this.state.schedule || !this.state.webglInitialized) return;
+        if (!this.state.webglInitialized) return;
 
         const select = document.getElementById('vis-day-select');
-        const dayIndex = select.value;
-        if (dayIndex === '') return;
+        const exerciseId = select.value;
+        if (exerciseId === '') return;
 
-        const day = this.state.schedule[dayIndex];
+        // Define deadlift if missing
+        if (!this.MovementMap['deadlift']) {
+             this.MovementMap['deadlift'] = {
+                 primary: ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back'],
+                 synergists: ['quad_l', 'quad_r', 'traps_l', 'traps_r', 'lat_l', 'lat_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r'],
+                 animation: "idle"
+             };
+        }
 
         document.getElementById('vis-details').style.display = 'block';
-        document.getElementById('vis-desc').innerText = `ISOLATING: ${day.focus} | INTENSITY: ${day.intensity}`;
+        let descText = "";
+        switch(exerciseId) {
+            case 'squat': descText = "ISOLATING: Lower Body (Squat) | INTENSITY: High"; break;
+            case 'press': descText = "ISOLATING: Upper Body Push | INTENSITY: High"; break;
+            case 'fullbody': descText = "ISOLATING: Full Body Power | INTENSITY: Maximal"; break;
+            case 'deadlift': descText = "ISOLATING: Posterior Chain | INTENSITY: High"; break;
+            case 'idle': descText = "ISOLATING: Neutral / Recovery | INTENSITY: Rest"; break;
+            default: descText = "ISOLATING: Selected Movement | INTENSITY: Varies";
+        }
+        document.getElementById('vis-desc').innerText = descText;
+
+        // Set AnimState directly from dropdown
+        this.animState = exerciseId;
+        if (exerciseId === 'deadlift') this.animState = 'squat'; // fallback
+
 
         // Cyber Colors
         const colors = {
@@ -1726,6 +1733,101 @@ const app = {
         }
 
         recipeBox.innerHTML = recipeHTML;
+    },
+    syncJuicerInput(ingredient, type) {
+        const unitInput = document.getElementById(`ing-${ingredient}`);
+        const gramInput = document.getElementById(`ing-${ingredient}-g`);
+
+        const weights = {
+            beetroot: 130, carrot: 60, celery: 40, spinach: 30,
+            apple: 180, orange: 130, lemon: 50, ginger: 10,
+            mint: 2, potato: 150, cucumber: 300, pineapple: 900, kale: 20
+        };
+        const weight = weights[ingredient] || 100;
+
+        if (type === 'unit' && unitInput.value !== '') {
+            gramInput.value = Math.round(unitInput.value * weight);
+        } else if (type === 'g' && gramInput.value !== '') {
+            unitInput.value = (gramInput.value / weight).toFixed(1);
+        } else if (unitInput.value === '' || gramInput.value === '') {
+            if(type === 'unit') gramInput.value = '';
+            if(type === 'g') unitInput.value = '';
+        }
+    },
+
+    calculateJuice() {
+        const ingredientsList = ['beetroot', 'carrot', 'celery', 'spinach', 'apple', 'orange', 'lemon', 'ginger', 'mint', 'potato', 'cucumber', 'pineapple', 'kale'];
+        let totalSugar = 0; let totalGrams = 0; let acidityScore = 0;
+        let hazards = []; let tableHTML = "";
+
+        const db = {
+            beetroot: { sugar: 7, acidity: 0, color: '#9d174d', name: 'Beetroot', benefit: 'Nitrates for vasodilation' },
+            carrot: { sugar: 5, acidity: 0, color: '#ea580c', name: 'Carrot', benefit: 'Beta-carotene for eye health' },
+            celery: { sugar: 1, acidity: 1, color: '#84cc16', name: 'Celery', benefit: 'Hydration and electrolytes' },
+            spinach: { sugar: 0.4, acidity: 0.5, color: '#15803d', name: 'Spinach', benefit: 'Iron and Vitamin K', hazard: 'High oxalates (kidney stone risk)' },
+            apple: { sugar: 10, acidity: -1, color: '#fef08a', name: 'Apple', benefit: 'Pectin and natural energy' },
+            orange: { sugar: 9, acidity: -2, color: '#f97316', name: 'Orange', benefit: 'Vitamin C (Ascorbic Acid)' },
+            lemon: { sugar: 2, acidity: -4, color: '#fef08a', name: 'Lemon', benefit: 'Alkalizing post-digestion, high Vitamin C', hazard: 'Enamel erosion risk' },
+            ginger: { sugar: 1, acidity: 0, color: '#fde047', name: 'Ginger', benefit: 'Gingerol for anti-inflammation', hazard: 'May cause heartburn in large doses' },
+            mint: { sugar: 0, acidity: 0.5, color: '#16a34a', name: 'Mint', benefit: 'Digestion aid and flavor' },
+            potato: { sugar: 1, acidity: 0, color: '#fcd34d', name: 'Potato', benefit: 'Potassium rich (Requires cooking for safe starch digestion)', hazard: 'Raw potato starch can cause GI distress' },
+            cucumber: { sugar: 1.7, acidity: 1, color: '#4ade80', name: 'Cucumber', benefit: 'Deep cellular hydration' },
+            pineapple: { sugar: 10, acidity: -2, color: '#facc15', name: 'Pineapple', benefit: 'Bromelain for digestion/recovery', hazard: 'High glycemic index' },
+            kale: { sugar: 1, acidity: 0.5, color: '#14532d', name: 'Kale', benefit: 'Folate, Vitamin K, and Antioxidants', hazard: 'Goitrogens (affects thyroid function if raw in large amounts)' }
+        };
+
+        ingredientsList.forEach(ing => {
+            const gInput = document.getElementById(`ing-${ing}-g`);
+            if (gInput && gInput.value > 0) {
+                const g = parseFloat(gInput.value);
+                const info = db[ing];
+                totalGrams += g;
+
+                const sugar = (info.sugar / 100) * g;
+                totalSugar += sugar;
+                acidityScore += (info.acidity * (g/100));
+
+                tableHTML += `<tr><td>${info.name}</td><td>${g}g</td><td>${sugar.toFixed(1)}g</td><td>${info.benefit}</td></tr>`;
+                if (info.hazard && g > 50 && !hazards.includes(info.hazard)) hazards.push(info.hazard);
+            }
+        });
+
+        if (totalGrams === 0) {
+            document.getElementById('juicer-empty-state').style.display = 'block';
+            document.getElementById('juicer-analysis-card').style.display = 'none';
+            return;
+        }
+
+        let mainColor = '#84cc16';
+        if (document.getElementById('ing-beetroot-g') && document.getElementById('ing-beetroot-g').value > 10) mainColor = '#9d174d';
+        else if (document.getElementById('ing-carrot-g') && document.getElementById('ing-carrot-g').value > 50) mainColor = '#ea580c';
+
+        let estimatedPh = 7.0 + (acidityScore / (totalGrams/100 || 1));
+        if (estimatedPh < 3.0) estimatedPh = 3.0;
+        if (estimatedPh > 8.0) estimatedPh = 8.0;
+
+        if (totalSugar > 25) hazards.push("High Sugar Load (>25g). May spike insulin. Consider adding more greens or limiting fruit.");
+
+        document.getElementById('juice-sugar').innerText = totalSugar.toFixed(1) + 'g';
+        document.getElementById('juice-sugar').style.color = totalSugar > 25 ? '#ef4444' : '#10b981';
+        document.getElementById('juice-ph').innerText = estimatedPh.toFixed(1);
+        document.getElementById('juice-ph').style.color = estimatedPh < 4.0 ? '#ef4444' : '#3b82f6';
+        document.getElementById('juice-color-swatch').style.background = mainColor;
+
+        const hazardsHTML = hazards.length > 0
+            ? hazards.map(h => `<li style="color: #ef4444; margin-bottom: 0.25rem;">${h}</li>`).join('')
+            : `<li style="color: #10b981;">No immediate hazards detected. Balanced profile.</li>`;
+
+        if (!document.getElementById('juicer-hazards-list')) {
+            const tableParent = document.getElementById('juice-nutrient-table').parentNode;
+            const hazardDiv = document.createElement('div');
+            hazardDiv.innerHTML = '<h5 style="margin-top: 1rem; color: #ef4444;">Hazards</h5><ul id="juicer-hazards-list" style="font-size: 0.8rem;"></ul>';
+            tableParent.parentNode.appendChild(hazardDiv);
+        }
+        document.getElementById('juicer-hazards-list').innerHTML = hazardsHTML;
+        document.getElementById('juice-nutrient-table').innerHTML = tableHTML;
+        document.getElementById('juicer-empty-state').style.display = 'none';
+        document.getElementById('juicer-analysis-card').style.display = 'block';
     }
 };
 
