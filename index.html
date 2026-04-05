@@ -211,51 +211,24 @@
                 <div class="grid-2">
                     <div>
 
-                                                <div class="form-group mb-1">
-                            <label for="vis-dict-select">Exercise Dictionary (Direct Override)</label>
+
+                        <div class="form-group mb-1">
+                            <label for="vis-dict-select">Strength Exercise Dictionary</label>
                             <div style="display: flex; gap: 0.5rem;">
-                                <select id="vis-dict-select" onchange="app.playDictionaryExercise()" style="flex-grow: 1;">
-                                    <option value="">-- Select an exercise to preview --</option>
+                                <select id="vis-dict-select" onchange="app.playDictionaryExercise()" style="flex-grow: 1; padding: 0.5rem;">
+                                    <option value="">-- Select an exercise --</option>
                                     <option value="squat">Barbell Squat (Lower Body)</option>
                                     <option value="press">Bench Press (Upper Body Push)</option>
                                     <option value="fullbody">Thruster (Full Kinetic Chain)</option>
                                 </select>
+                                <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset Camera</button>
                             </div>
                         </div>
-                        <div style="text-align: center; margin: 1rem 0; color: #9ca3af; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;">OR</div>
-<div class="form-group mb-1">
-                            <label for="vis-day-select">Select Protocol Phase to Isolate</label>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <select id="vis-day-select" onchange="app.updateWebGLVisualizer()" style="flex-grow: 1;">
-                                    <option value="">-- Generate Protocol First --</option>
-                                </select>
-                                <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset</button>
-                            </div>
-                        </div>
-                        <div class="result-card mt-1" id="vis-details" style="display:none; background: #111827; color: #e5e7eb; border: 1px solid #374151;">
-                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">System Diagnostics</h4>
-                            <p id="vis-desc" style="font-family: var(--font-mono); font-size: 0.9rem; margin-top: 0.5rem; color: #34d399;"></p>
 
-                            <h5 style="color: #9ca3af; margin-top: 1rem; font-family: var(--font-mono);">Recommended Modalities:</h5>
-                            <ul id="vis-equipment" style="list-style: none; margin-top: 0.5rem; font-size: 0.85rem; padding-left: 10px; border-left: 2px solid #3b82f6;">
-                            </ul>
+                        <div class="form-group mb-1" style="display: none;">
+                            <select id="vis-day-select" onchange="app.updateWebGLVisualizer()"></select>
+                        </div>
 
-                            <ul style="list-style: none; margin-top: 1rem; font-size: 0.85rem; padding-top: 1rem; border-top: 1px solid #374151;">
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; box-shadow: 0 0 5px #ef4444; margin-right: 5px;"></span> Primary Mover (High Stress)</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; box-shadow: 0 0 5px #3b82f6; margin-right: 5px;"></span> Synergist (Moderate Stress)</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; margin-right: 5px;"></span> Tissue Regeneration (Recovery)</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div id="webgl-container" style="background-color: #0a0a0c; border: 2px solid #1f2937; min-height: 500px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: grab;">
-                        <!-- WebGL Canvas Injected Here -->
-                        <div id="webgl-overlay" style="position: absolute; top: 10px; left: 10px; color: #10b981; font-family: 'Courier New', monospace; font-size: 12px; pointer-events: none; text-shadow: 0 0 5px rgba(16, 185, 129, 0.5);">
-                            SYS.OPT: ONLINE<br>
-                            RENDER: WebGL_PolyMesh_v2<br>
-                            ORBIT: Active
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
 
@@ -330,10 +303,14 @@
                         <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select ingredients to build your juice. The system will analyze sugar, micronutrients, acidity, and provide a hazard/benefit report.</p>
 
 
-                        <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+
+                        <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0; max-height: 500px; display: flex; flex-direction: column;">
                             <h4 style="color: #334155; margin-bottom: 0.5rem;">Ingredients (Input Units or Grams)</h4>
                             <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Values will automatically convert based on average weights.</p>
-                            <div class="grid-2" style="gap: 1rem;">
+
+                            <div style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
+                                <div class="grid-2" style="gap: 1rem;">
+
                                 <!-- Vegetables -->
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
@@ -357,6 +334,7 @@
                                             <input type="number" id="ing-celery-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('celery', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Spinach</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -364,7 +342,28 @@
                                             <input type="number" id="ing-spinach-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('spinach', 'g')">
                                         </div>
                                     </div>
-                                </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Kale</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-kale" min="0" placeholder="Cups" style="width: 50px;" oninput="app.syncJuicerInput('kale', 'unit')">
+                                            <input type="number" id="ing-kale-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('kale', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Cucumber</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-cucumber" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('cucumber', 'unit')">
+                                            <input type="number" id="ing-cucumber-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('cucumber', 'g')">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Potato (Sweet)</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-potato" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('potato', 'unit')">
+                                            <input type="number" id="ing-potato-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('potato', 'g')">
+                                        </div>
+                                    </div>
+</div>
                                 <!-- Fruits & Aromatics -->
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
@@ -374,6 +373,7 @@
                                             <input type="number" id="ing-apple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('apple', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Orange</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -382,12 +382,21 @@
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Pineapple</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-pineapple" min="0" placeholder="Cups" style="width: 50px;" oninput="app.syncJuicerInput('pineapple', 'unit')">
+                                            <input type="number" id="ing-pineapple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('pineapple', 'g')">
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Lemon</label>
                                         <div style="display: flex; gap: 0.25rem;">
                                             <input type="number" id="ing-lemon" min="0" placeholder="Halves" style="width: 50px;" oninput="app.syncJuicerInput('lemon', 'unit')">
                                             <input type="number" id="ing-lemon-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('lemon', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Ginger</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -395,10 +404,24 @@
                                             <input type="number" id="ing-ginger-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('ginger', 'g')">
                                         </div>
                                     </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Mint</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-mint" min="0" placeholder="Leaves" style="width: 50px;" oninput="app.syncJuicerInput('mint', 'unit')">
+                                            <input type="number" id="ing-mint-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('mint', 'g')">
+                                        </div>
+                                    </div>
+
+                                </div>
+
                                 </div>
                             </div>
-                            <button type="button" class="btn-primary mt-1" style="width: 100%; margin-top: 1rem; background: #be185d;" onclick="app.calculateJuice()">Mix Juice</button>
+
+                            <div style="margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                                <button type="button" class="btn-primary" style="width: 100%; background: #be185d; padding: 1rem; font-size: 1.1rem; font-weight: bold; cursor: pointer; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(190, 24, 93, 0.4);" onclick="app.calculateJuice()">MIX JUICE</button>
+                            </div>
                         </div>
+
 
                     </div>
 

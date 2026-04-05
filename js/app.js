@@ -181,30 +181,29 @@ const app = {
                 const tr = document.createElement('tr');
                 tr.style.cursor = 'pointer';
                 tr.title = 'Click to view mechanics in 3D Visualizer';
-                tr.onclick = () => this.viewExerciseInVisualizer(day.originalIndex);
-                tr.innerHTML = `
-                    <td><strong>${day.day}</strong></td>
-                    <td><span class="status-badge ${day.phase === 'Recovery' ? 'status-ok' : (day.intensity==='High'?'status-alert':'status-warn')}">${day.phase}</span></td>
-                    <td>${day.focus}</td>
-                    <td>${day.intensity}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        });
-
-        document.getElementById('schedule-summary').innerText = `Generated 3 alternative repeating microcycles tailored to macrocycle goals, factoring in joint integrity and performance benchmarks.`;
-        document.getElementById('schedule-output').style.display = 'block';
-    },
-
-    // Tri-Phasic Kinesiology Protocol
-
+                tr.onclick = () => this.
     viewExerciseInVisualizer(dayIndex) {
         this.showModule('visualizer');
-        const select = document.getElementById('vis-day-select');
-        select.value = dayIndex;
-        // manually dispatch change event to trigger update
-        select.dispatchEvent(new Event('change'));
+        const day = this.state.schedule[dayIndex];
+        const dictSelect = document.getElementById('vis-dict-select');
+
+        // Map protocol phase to dictionary exercise
+        if (day.phase === 'Strength') {
+            if (day.focus.toLowerCase().includes('lower')) {
+                dictSelect.value = 'squat';
+            } else if (day.focus.toLowerCase().includes('upper')) {
+                dictSelect.value = 'press';
+            } else {
+                dictSelect.value = 'fullbody';
+            }
+        } else {
+            // Default to fullbody for aerobic/anaerobic generic movement for now
+            dictSelect.value = 'fullbody';
+        }
+
+        dictSelect.dispatchEvent(new Event('change'));
     },
+
 
     updateKinesiologyProtocol() {
         if (!this.state.schedule) return;
