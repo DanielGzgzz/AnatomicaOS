@@ -29,7 +29,44 @@
             opacity: 0.5 !important;
         }
 
+
         /* Switch styling */
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr !important;
+            }
+            .main-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .nav-btn {
+                flex: 1 1 45%; /* Buttons wrap nicely */
+                text-align: center;
+                padding: 0.8rem;
+                font-size: 0.9rem;
+            }
+            .os-header {
+                padding: 1rem;
+            }
+            .module {
+                padding: 1rem;
+            }
+
+            /* Make inputs on juicer responsive */
+            input[type="number"] {
+                width: 45px !important;
+                padding: 0.3rem !important;
+            }
+
+            /* Adjust visualizer container height for mobile */
+            #webgl-container {
+                min-height: 400px !important;
+                height: 400px !important;
+            }
+        }
+
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
