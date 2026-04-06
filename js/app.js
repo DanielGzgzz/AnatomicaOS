@@ -181,8 +181,24 @@ const app = {
                 const tr = document.createElement('tr');
                 tr.style.cursor = 'pointer';
                 tr.title = 'Click to view mechanics in 3D Visualizer';
-                tr.onclick = () => this.
+
+                tr.onclick = () => this.viewExerciseInVisualizer(day.originalIndex);
+                tr.innerHTML = `
+                    <td><strong>${day.day}</strong></td>
+                    <td><span class="status-badge ${day.phase === 'Recovery' ? 'status-ok' : (day.intensity==='High'?'status-alert':'status-warn')}">${day.phase}</span></td>
+                    <td>${day.focus}</td>
+                    <td>${day.intensity}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        });
+
+        document.getElementById('schedule-summary').innerText = `Generated 3 alternative repeating microcycles tailored to macrocycle goals, factoring in joint integrity and performance benchmarks.`;
+        document.getElementById('schedule-output').style.display = 'block';
+    },
+
     viewExerciseInVisualizer(dayIndex) {
+
         this.showModule('visualizer');
         const day = this.state.schedule[dayIndex];
         const dictSelect = document.getElementById('vis-dict-select');
@@ -401,7 +417,7 @@ const app = {
         // Scene Setup
         this.scene = new THREE.Scene();
         // Add dynamic grid to floor
-        this.gridHelper = new THREE.GridHelper(50, 50, 0x10b981, 0x111827);
+        this.gridHelper = new THREE.GridHelper(50, 50, 0xa7f3d0, 0xd1d5db);
         this.gridHelper.position.y = -8.5;
         // Disable depth write for grid to prevent z-fighting with trails or contact shadow
         this.gridHelper.material.depthWrite = false;

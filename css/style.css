@@ -2,20 +2,25 @@
  * Design Language: Strictly organized, academic, and clinical.
  */
 
+
 :root {
-    --bg-main: #f4f6f8;
+    --bg-main: #f0fdf4; /* Light green tint */
     --bg-module: #ffffff;
-    --border-color: #d1d5db;
-    --text-main: #1f2937;
-    --text-muted: #6b7280;
-    --accent-blue: #2563eb;
-    --accent-blue-hover: #1d4ed8;
-    --header-bg: #111827;
-    --header-text: #f9fafb;
+    --border-color: #a7f3d0; /* Soft green border */
+    --text-main: #064e3b; /* Dark green text for readability */
+    --text-muted: #166534; /* Medium green */
+    --accent-blue: #10b981; /* Emerald Green instead of blue */
+    --accent-blue-hover: #059669; /* Darker emerald */
+    --header-bg: #064e3b; /* Very dark green */
+    --header-text: #ecfdf5;
     --font-mono: 'Courier New', Courier, monospace;
     --font-sans: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --card-bg: #ffffff;
+    --text-primary: #064e3b;
+    --text-secondary: #166534;
+    --bg-color: #f0fdf4;
+    --primary-color: #10b981;
 }
-
 * {
     box-sizing: border-box;
     margin: 0;
