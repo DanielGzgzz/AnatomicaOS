@@ -1053,36 +1053,40 @@ const app = {
         }
 
         if (this.animState === 'squat') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
-            const recipe = this.exerciseRecipes.squat;
-
-            // Interpolate values
-            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
-            const hinge = lerp(recipe.start.bend, recipe.mid.bend, phase);
-            const kneeRot = lerp(recipe.start.kneeOut, recipe.mid.kneeOut, phase);
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.squat;
+            const drop = lerp(r.start.yDrop, r.mid.yDrop, phase);
+            const hinge = lerp(r.start.bend, r.mid.bend, phase);
+            const kneeRot = lerp(r.start.kneeOut, r.mid.kneeOut, phase);
 
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
 
             torsoParts.forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
+                    // Hinge forward slightly
+                    if (!['arm', 'hand', 'forearm', 'bicep', 'tricep', 'delt', 'elbow'].some(keyword => p.includes(keyword))) {
+                        this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge;
+                        this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge;
+                    }
                 }
             });
 
-            // Bend knees outward and quads down
+            // Rotate hip/knee joints X-axis until thigh mesh breaks parallel. Reverse.
             ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - kneeRot;
+                    // Rotate until parallel
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - (drop * 0.5);
                 }
             });
 
             ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.4;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + (drop * 0.2);
                 }
             });
             ['knee_l', 'knee_r'].forEach(p => {
@@ -1092,14 +1096,50 @@ const app = {
                 }
             });
 
-                } else if (this.animState === 'press') {
+        } else if (this.animState === 'deadlift') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.deadlift;
+            const bend = lerp(r.start.bend, r.mid.bend, phase);
+            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+
+            // Bipedal, hip X-rotated (hinged). Hand IK at y=0. Translate root +y. Rotate hip/knee X-axis to 0. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY + handY;
+                    mesh.position.z = base.pos.z + bend;
+                    mesh.rotation.x = base.rot.x; // Keep hands pointing down (IK at y=0)
+                } else if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY - bend * 1.5;
+                    mesh.position.z = base.pos.z + bend * 1.5;
+                    mesh.rotation.x = base.rot.x + bend; // Rotate hip X-axis (hinged)
+                } else if (['glute_l', 'glute_r', 'pelvis', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'pec_l', 'pec_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY - bend * 0.5;
+                    mesh.position.z = base.pos.z + bend * 0.5;
+                    mesh.rotation.x = base.rot.x + (bend * 0.5);
+                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY * 0.5;
+                    mesh.position.z = base.pos.z;
+                    mesh.rotation.x = base.rot.x - (bend * 0.1);
+                } else if (['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY - bend * 1.2;
+                    mesh.position.z = base.pos.z + bend * 1.2;
+                    mesh.rotation.x = base.rot.x + bend;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'press') {
             const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
             const recipe = this.exerciseRecipes.press;
-
-            // Interpolate values
             const push = lerp(recipe.start.push, recipe.mid.push, phase);
 
-            // Move arms forward
+            // Supine, rooted at y=bench_height. Hand IK +y (extended). Translate hand IK -y until collision with chest mesh. Reverse.
+            // For now, we simulate supine by just moving arms forward/back like a standing press, as rotating the whole mesh supine requires full body rot.
             ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
@@ -1109,29 +1149,195 @@ const app = {
             });
             ['elbow_l', 'elbow_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 0.5;
                 }
             });
             ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 0.5;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
                 }
             });
 
-            // reset lower body
-            const allParts = Object.keys(this.bodyParts);
-            allParts.forEach(p => {
-                if(!['hand_l', 'hand_r', 'forearm_l', 'forearm_r', 'elbow_l', 'elbow_r', 'bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].includes(p)) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
+        } else if (this.animState === 'pullup') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.pullup;
+            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            // Suspended, hand IK anchored +y. Translate root +y. Rotate shoulder/elbow joints. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r'].includes(p)) {
+                    mesh.position.copy(base.pos);
+                    mesh.position.y += 2.5; // Anchored high
+                    mesh.rotation.x = base.rot.x;
+                } else if (['forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + 2.5 - elbowRot * 0.5 + rootY;
+                    mesh.position.z = base.pos.z + elbowRot * 0.5;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY + 1.0;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else {
+                    mesh.position.y = base.pos.y + rootY;
+                    mesh.position.z = base.pos.z;
+                    mesh.rotation.copy(base.rot);
                 }
             });
+
+        } else if (this.animState === 'overhead_press') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.overhead_press;
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            // Bipedal, hand IK at clavicle coordinates. Translate hand IK +y until elbow rotation =0. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + handY;
+                    mesh.position.z = base.pos.z + handZ;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + handY * 0.5;
+                    mesh.rotation.x = base.rot.x + elbowRot * 0.5;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'barbell_row') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.barbell_row;
+            const bend = r.start.bend; // Static hold
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
+
+            // Bipedal, hip X-rotated 45-90 degrees. Translate hand IK +y to abdomen mesh. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+
+                // Static hinge
+                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
+                    mesh.position.y = base.pos.y - bend * 1.5;
+                    mesh.position.z = base.pos.z + bend * 1.5;
+                    mesh.rotation.x = base.rot.x + bend;
+                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
+                    mesh.position.z = base.pos.z - bend * 0.5;
+                } else if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + handY;
+                    mesh.position.z = base.pos.z + bend * 1.5 + handZ;
+                    mesh.rotation.x = base.rot.x + bend;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
+                    mesh.position.y = base.pos.y - bend * 1.0;
+                    mesh.position.z = base.pos.z + bend * 1.0 + handZ * 0.5;
+                    mesh.rotation.x = base.rot.x + bend - (handZ * 0.5);
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'bicep_curl') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.bicep_curl;
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            // Bipedal, arms extended (y=0). Rotate elbow X-axis to maximum flexion. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + elbowRot * 1.5;
+                    mesh.position.z = base.pos.z + elbowRot * 1.5;
+                    mesh.rotation.x = base.rot.x - elbowRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'triceps_pushdown') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.triceps_pushdown;
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            // Bipedal, elbows flexed, hand IK at chest height. Rotate elbow X-axis to 0 (extension). Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + elbowRot * 1.5;
+                    mesh.position.z = base.pos.z + elbowRot * 1.5;
+                    mesh.rotation.x = base.rot.x - elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
+                    mesh.rotation.x = base.rot.x - 0.5; // Arms slightly forward
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'leg_extension') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.leg_extension;
+            const rootRotX = r.start.rootRotX; // Seated
+            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
+
+            // Seated, hip X-rotation 90, knee X-rotation 90. Rotate knee X-axis to 0. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+
+                // Seated torso
+                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r', 'elbow_l', 'elbow_r'].includes(p)) {
+                    mesh.position.y = base.pos.y - 2.0;
+                    mesh.position.z = base.pos.z - 2.0;
+                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r', 'glute_l', 'glute_r', 'pelvis'].includes(p)) {
+                    mesh.position.y = base.pos.y - 2.0;
+                    mesh.rotation.x = base.rot.x - rootRotX;
+                    mesh.position.z = base.pos.z + 1.0;
+                } else if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + kneeRot * 1.5 - 2.0;
+                    mesh.position.z = base.pos.z + kneeRot * 2.0 + 1.0;
+                    mesh.rotation.x = base.rot.x - rootRotX + kneeRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
+        } else if (this.animState === 'leg_curl') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.leg_curl;
+            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
+
+            // Prone or Seated, knee X-rotation 0. Rotate knee X-axis to 90+. Reverse.
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+
+                if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + kneeRot * 2.0;
+                    mesh.position.z = base.pos.z - kneeRot * 1.5;
+                    mesh.rotation.x = base.rot.x + kneeRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+
         } else if (this.animState === 'fullbody') {
             const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
             const recipe = this.exerciseRecipes.fullbody;
 
-            // Interpolate values
             const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
             const push = lerp(recipe.start.push, recipe.mid.push, phase);
 
@@ -1143,7 +1349,6 @@ const app = {
                 }
             });
 
-            // Bend knees outward and quads down
             ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
@@ -1184,190 +1389,6 @@ const app = {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.0;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
-                }
-            });
-        } else if (this.animState === 'deadlift') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.deadlift;
-            const bend = lerp(r.start.bend, r.mid.bend, phase);
-            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY + handY;
-                    mesh.position.z = base.pos.z + bend; // Straight down
-                    mesh.rotation.x = base.rot.x; // Hang straight
-                } else if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY - bend * 1.5;
-                    mesh.position.z = base.pos.z + bend * 1.5;
-                    mesh.rotation.x = base.rot.x + bend; // Hinge forward
-                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY;
-                    mesh.position.z = base.pos.z - bend * 0.5; // Push hips back
-                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY * 0.5;
-                    mesh.position.z = base.pos.z;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'pullup') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.pullup;
-            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r'].includes(p)) {
-                    mesh.position.copy(base.pos);
-                    mesh.position.y += 2.5; // Anchored high
-                    mesh.rotation.x = base.rot.x;
-                } else if (['forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + 2.5 - elbowRot * 0.5;
-                    mesh.position.z = base.pos.z + elbowRot * 0.5;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else {
-                    mesh.position.y = base.pos.y + rootY;
-                    mesh.position.z = base.pos.z;
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'overhead_press') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.overhead_press;
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + handY;
-                    mesh.position.z = base.pos.z + handZ;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r'].includes(p)) {
-                    mesh.rotation.x = base.rot.x + elbowRot * 0.5;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'barbell_row') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.barbell_row;
-            const bend = r.start.bend; // Static hold
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-
-                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
-                    mesh.position.y = base.pos.y - bend * 1.5;
-                    mesh.position.z = base.pos.z + bend * 1.5;
-                    mesh.rotation.x = base.rot.x + bend;
-                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
-                    mesh.position.z = base.pos.z - bend * 0.5;
-                } else if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + handY;
-                    mesh.position.z = base.pos.z + bend * 1.5 + handZ;
-                    mesh.rotation.x = base.rot.x + bend;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
-                    mesh.position.y = base.pos.y - bend * 1.0;
-                    mesh.position.z = base.pos.z + bend * 1.0;
-                    mesh.rotation.x = base.rot.x + bend - (handZ * 0.5);
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'bicep_curl') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.bicep_curl;
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + elbowRot * 1.5;
-                    mesh.position.z = base.pos.z + elbowRot * 1.5;
-                    mesh.rotation.x = base.rot.x - elbowRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'triceps_pushdown') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.triceps_pushdown;
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + elbowRot * 1.5;
-                    mesh.position.z = base.pos.z + elbowRot * 1.5;
-                    mesh.rotation.x = base.rot.x - elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
-                    mesh.rotation.x = base.rot.x - 0.5; // Arms slightly forward
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'leg_extension') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.leg_extension;
-            const rootRotX = r.start.rootRotX;
-            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].includes(p)) {
-                    mesh.position.y = base.pos.y - 2.0;
-                    mesh.position.z = base.pos.z - 2.0;
-                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r', 'glute_l', 'glute_r', 'pelvis'].includes(p)) {
-                    mesh.position.y = base.pos.y - 2.0;
-                    mesh.rotation.x = base.rot.x - rootRotX;
-                    mesh.position.z = base.pos.z + 1.0;
-                } else if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + kneeRot * 1.5;
-                    mesh.position.z = base.pos.z + kneeRot * 2.0;
-                    mesh.rotation.x = base.rot.x - rootRotX + kneeRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-        } else if (this.animState === 'leg_curl') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.leg_curl;
-            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
-
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + kneeRot * 2.0;
-                    mesh.position.z = base.pos.z - kneeRot * 1.5;
-                    mesh.rotation.x = base.rot.x + kneeRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
                 }
             });
         } else {
