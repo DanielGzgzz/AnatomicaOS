@@ -272,9 +272,9 @@ const app = {
 
     // Procedural Anatomy & Biomechanics Visualizer (WebGL)
     updateVisualizerSelect() {
-        // The dropdown is now a static dictionary of exercises in HTML.
-        // We just need to trigger the initial render if we are currently in the visualizer view.
+        // Initial render
         if(this.state.activeModule === 'visualizer') {
+            this.initWebGL();
             this.updateWebGLVisualizer();
         }
     },
@@ -764,21 +764,17 @@ const app = {
 
         // JSON-based Exercise Recipes for Animation (Relative Offsets)
                 this.exerciseRecipes = {
-            squat: {
-                start: { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 },
-                mid:   { yDrop: 2.0, bend: 0.5, kneeOut: 0.4 },
-                end:   { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 }
-            },
-            press: {
-                start: { push: 0.0 },
-                mid:   { push: 1.0 },
-                end:   { push: 0.0 }
-            },
-            fullbody: {
-                start: { yDrop: 0.0, bend: 0.0, push: 0.0 },
-                mid:   { yDrop: 1.5, bend: 0.4, push: 0.8 },
-                end:   { yDrop: 0.0, bend: 0.0, push: 0.0 }
-            }
+            squat: { start: { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 }, mid: { yDrop: 2.0, bend: 0.5, kneeOut: 0.4 }, end: { yDrop: 0.0, bend: 0.0, kneeOut: 0.0 } },
+            press: { start: { push: 0.0 }, mid: { push: 1.0 }, end: { push: 0.0 } },
+            fullbody: { start: { yDrop: 0.0, push: 0.0 }, mid: { yDrop: 2.0, push: 1.0 }, end: { yDrop: 0.0, push: 0.0 } },
+            deadlift: { start: { bend: 0.0, rootY: 0.0, handY: 0.0 }, mid: { bend: 1.2, rootY: -0.5, handY: -3.0 }, end: { bend: 0.0, rootY: 0.0, handY: 0.0 } },
+            pullup: { start: { rootY: 0.0, elbowRot: 0.0 }, mid: { rootY: 2.5, elbowRot: 1.5 }, end: { rootY: 0.0, elbowRot: 0.0 } },
+            overhead_press: { start: { handY: 0.0, handZ: 0.0, elbowRot: 0.0 }, mid: { handY: 3.5, handZ: -0.5, elbowRot: 1.5 }, end: { handY: 0.0, handZ: 0.0, elbowRot: 0.0 } },
+            barbell_row: { start: { bend: 1.0, handY: -2.0, handZ: 0.5 }, mid: { bend: 1.0, handY: -0.5, handZ: 1.5 }, end: { bend: 1.0, handY: -2.0, handZ: 0.5 } },
+            bicep_curl: { start: { elbowRot: 0.0 }, mid: { elbowRot: 2.0 }, end: { elbowRot: 0.0 } },
+            triceps_pushdown: { start: { elbowRot: 2.0 }, mid: { elbowRot: 0.0 }, end: { elbowRot: 2.0 } },
+            leg_extension: { start: { rootRotX: 1.5, kneeRot: 1.5 }, mid: { rootRotX: 1.5, kneeRot: 0.0 }, end: { rootRotX: 1.5, kneeRot: 1.5 } },
+            leg_curl: { start: { kneeRot: 0.0 }, mid: { kneeRot: -1.5 }, end: { kneeRot: 0.0 } }
         };
 
         // Setup Contact Shadow
@@ -890,6 +886,54 @@ const app = {
 
                 this.kinematicChainLine.geometry.setFromPoints(chainPoints);
             }
+
+            // Mechanical Sensory Math (Collision & Detachment Physics Validation)
+            // Hierarchical kinematic chains to validate
+            const chains = [
+                ['delt_l', 'bicep_l', 'elbow_l', 'forearm_l', 'hand_l'],
+                ['delt_r', 'bicep_r', 'elbow_r', 'forearm_r', 'hand_r'],
+                ['glute_l', 'quad_l', 'knee_l', 'shin_l', 'foot_l'],
+                ['glute_r', 'quad_r', 'knee_r', 'shin_r', 'foot_r']
+            ];
+
+            chains.forEach(chain => {
+                for (let i = 0; i < chain.length - 1; i++) {
+                    const parent = this.bodyParts[chain[i]];
+                    const child = this.bodyParts[chain[i+1]];
+
+                    if (parent && child) {
+                        if (chain[i+1] === 'hand_l' || chain[i+1] === 'hand_r') {
+                            child.mesh.rotation.x = parent.mesh.rotation.x;
+                        }
+
+                        const parentPos = parent.mesh.position;
+                        const childPos = child.mesh.position;
+                        const dist = parentPos.distanceTo(childPos);
+
+                        const baseParent = this.basePositions[chain[i]].pos;
+                        const baseChild = this.basePositions[chain[i+1]].pos;
+                        const baseDist = baseParent.distanceTo(baseChild);
+
+                        const sizeParent = (parent.mesh.scale.x + parent.mesh.scale.y + parent.mesh.scale.z) / 3;
+                        const sizeChild = (child.mesh.scale.x + child.mesh.scale.y + child.mesh.scale.z) / 3;
+                        const smallerSize = Math.min(sizeParent, sizeChild);
+
+                        const maxDetachment = baseDist + (smallerSize * 0.02);
+                        const maxCollision = baseDist - (smallerSize * 0.04);
+
+                        if (dist > maxDetachment) {
+                            const dir = childPos.clone().sub(parentPos).normalize();
+                            const correction = dir.multiplyScalar(dist - maxDetachment);
+                            child.mesh.position.sub(correction);
+                        } else if (dist < maxCollision) {
+                            const dir = childPos.clone().sub(parentPos).normalize();
+                            if (dir.length() === 0) dir.set(0, -1, 0);
+                            const correction = dir.multiplyScalar(maxCollision - dist);
+                            child.mesh.position.add(correction);
+                        }
+                    }
+                }
+            });
 
             // Update Motion Trails (specifically for hands/feet during movement)
             if (this.animState !== 'idle') {
@@ -1060,6 +1104,7 @@ const app = {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
                 }
             });
             ['elbow_l', 'elbow_r'].forEach(p => {
@@ -1126,6 +1171,7 @@ const app = {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 3;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
                 }
             });
             ['elbow_l', 'elbow_r'].forEach(p => {
@@ -1138,6 +1184,190 @@ const app = {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.0;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
+                }
+            });
+        } else if (this.animState === 'deadlift') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.deadlift;
+            const bend = lerp(r.start.bend, r.mid.bend, phase);
+            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY + handY;
+                    mesh.position.z = base.pos.z + bend; // Straight down
+                    mesh.rotation.x = base.rot.x; // Hang straight
+                } else if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY - bend * 1.5;
+                    mesh.position.z = base.pos.z + bend * 1.5;
+                    mesh.rotation.x = base.rot.x + bend; // Hinge forward
+                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY;
+                    mesh.position.z = base.pos.z - bend * 0.5; // Push hips back
+                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY * 0.5;
+                    mesh.position.z = base.pos.z;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'pullup') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.pullup;
+            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r'].includes(p)) {
+                    mesh.position.copy(base.pos);
+                    mesh.position.y += 2.5; // Anchored high
+                    mesh.rotation.x = base.rot.x;
+                } else if (['forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + 2.5 - elbowRot * 0.5;
+                    mesh.position.z = base.pos.z + elbowRot * 0.5;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + rootY;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else {
+                    mesh.position.y = base.pos.y + rootY;
+                    mesh.position.z = base.pos.z;
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'overhead_press') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.overhead_press;
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + handY;
+                    mesh.position.z = base.pos.z + handZ;
+                    mesh.rotation.x = base.rot.x + elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r'].includes(p)) {
+                    mesh.rotation.x = base.rot.x + elbowRot * 0.5;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'barbell_row') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.barbell_row;
+            const bend = r.start.bend; // Static hold
+            const handY = lerp(r.start.handY, r.mid.handY, phase);
+            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+
+                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
+                    mesh.position.y = base.pos.y - bend * 1.5;
+                    mesh.position.z = base.pos.z + bend * 1.5;
+                    mesh.rotation.x = base.rot.x + bend;
+                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
+                    mesh.position.z = base.pos.z - bend * 0.5;
+                } else if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + handY;
+                    mesh.position.z = base.pos.z + bend * 1.5 + handZ;
+                    mesh.rotation.x = base.rot.x + bend;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
+                    mesh.position.y = base.pos.y - bend * 1.0;
+                    mesh.position.z = base.pos.z + bend * 1.0;
+                    mesh.rotation.x = base.rot.x + bend - (handZ * 0.5);
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'bicep_curl') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.bicep_curl;
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + elbowRot * 1.5;
+                    mesh.position.z = base.pos.z + elbowRot * 1.5;
+                    mesh.rotation.x = base.rot.x - elbowRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'triceps_pushdown') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2;
+            const r = this.exerciseRecipes.triceps_pushdown;
+            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + elbowRot * 1.5;
+                    mesh.position.z = base.pos.z + elbowRot * 1.5;
+                    mesh.rotation.x = base.rot.x - elbowRot;
+                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
+                    mesh.rotation.x = base.rot.x - 0.5; // Arms slightly forward
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'leg_extension') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.leg_extension;
+            const rootRotX = r.start.rootRotX;
+            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].includes(p)) {
+                    mesh.position.y = base.pos.y - 2.0;
+                    mesh.position.z = base.pos.z - 2.0;
+                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r', 'glute_l', 'glute_r', 'pelvis'].includes(p)) {
+                    mesh.position.y = base.pos.y - 2.0;
+                    mesh.rotation.x = base.rot.x - rootRotX;
+                    mesh.position.z = base.pos.z + 1.0;
+                } else if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + kneeRot * 1.5;
+                    mesh.position.z = base.pos.z + kneeRot * 2.0;
+                    mesh.rotation.x = base.rot.x - rootRotX + kneeRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
+                }
+            });
+        } else if (this.animState === 'leg_curl') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            const r = this.exerciseRecipes.leg_curl;
+            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
+
+            Object.keys(this.bodyParts).forEach(p => {
+                const mesh = this.bodyParts[p].mesh;
+                const base = this.basePositions[p];
+                if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
+                    mesh.position.y = base.pos.y + kneeRot * 2.0;
+                    mesh.position.z = base.pos.z - kneeRot * 1.5;
+                    mesh.rotation.x = base.rot.x + kneeRot;
+                } else {
+                    mesh.position.copy(base.pos);
+                    mesh.rotation.copy(base.rot);
                 }
             });
         } else {
@@ -1158,31 +1388,40 @@ const app = {
         const exerciseId = select.value;
         if (exerciseId === '') return;
 
-        // Define deadlift if missing
-        if (!this.MovementMap['deadlift']) {
-             this.MovementMap['deadlift'] = {
-                 primary: ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back'],
-                 synergists: ['quad_l', 'quad_r', 'traps_l', 'traps_r', 'lat_l', 'lat_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r'],
-                 animation: "idle"
-             };
+        if (!this.MovementMap['squat']) {
+            this.MovementMap['squat'] = { primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'], synergists: ['ham_l', 'ham_r', 'lower_back', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'squat' };
+            this.MovementMap['press'] = { primary: ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'], synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'press' };
+            this.MovementMap['fullbody'] = { primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'tricep_l', 'tricep_r'], synergists: ['ham_l', 'ham_r', 'lower_back', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r'], animation: 'fullbody' };
+            this.MovementMap['idle'] = { primary: [], synergists: [], animation: 'idle' };
         }
+
+        this.MovementMap['deadlift'] = { primary: ['ham_l', 'ham_r', 'glute_l', 'glute_r', 'lower_back'], synergists: ['quad_l', 'quad_r', 'traps_l', 'traps_r', 'lat_l', 'lat_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r'], animation: "deadlift" };
+        this.MovementMap['pullup'] = { primary: ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'], synergists: ['traps_l', 'traps_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'], animation: "pullup" };
+        this.MovementMap['overhead_press'] = { primary: ['delt_l', 'delt_r', 'tricep_l', 'tricep_r'], synergists: ['traps_l', 'traps_r', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'], animation: "overhead_press" };
+        this.MovementMap['barbell_row'] = { primary: ['lat_l', 'lat_r', 'traps_l', 'traps_r'], synergists: ['bicep_l', 'bicep_r', 'forearm_l', 'forearm_r', 'lower_back', 'glute_l', 'glute_r', 'ham_l', 'ham_r'], animation: "barbell_row" };
+        this.MovementMap['bicep_curl'] = { primary: ['bicep_l', 'bicep_r'], synergists: ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'], animation: "bicep_curl" };
+        this.MovementMap['triceps_pushdown'] = { primary: ['tricep_l', 'tricep_r'], synergists: ['pec_l', 'pec_r', 'delt_l', 'delt_r', 'abs_1l', 'abs_1r'], animation: "triceps_pushdown" };
+        this.MovementMap['leg_extension'] = { primary: ['quad_l', 'quad_r'], synergists: ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'], animation: "leg_extension" };
+        this.MovementMap['leg_curl'] = { primary: ['ham_l', 'ham_r'], synergists: ['glute_l', 'glute_r', 'calf_l', 'calf_r'], animation: "leg_curl" };
 
         document.getElementById('vis-details').style.display = 'block';
         let descText = "";
         switch(exerciseId) {
-            case 'squat': descText = "ISOLATING: Lower Body (Squat) | INTENSITY: High"; break;
-            case 'press': descText = "ISOLATING: Upper Body Push | INTENSITY: High"; break;
+            case 'squat': descText = "ISOLATING: Quadriceps & Gluteus | INTENSITY: High"; break;
+            case 'deadlift': descText = "ISOLATING: Posterior Chain (Hamstrings/Glutes/Lower Back) | INTENSITY: High"; break;
+            case 'press': descText = "ISOLATING: Pectoralis & Triceps | INTENSITY: High"; break;
+            case 'pullup': descText = "ISOLATING: Latissimus Dorsi & Biceps | INTENSITY: High"; break;
+            case 'overhead_press': descText = "ISOLATING: Deltoids & Triceps | INTENSITY: High"; break;
+            case 'barbell_row': descText = "ISOLATING: Back (Lats/Rhomboids) | INTENSITY: High"; break;
+            case 'bicep_curl': descText = "ISOLATING: Biceps Brachii | INTENSITY: Moderate"; break;
+            case 'triceps_pushdown': descText = "ISOLATING: Triceps Brachii | INTENSITY: Moderate"; break;
+            case 'leg_extension': descText = "ISOLATING: Quadriceps (Machine) | INTENSITY: Moderate"; break;
+            case 'leg_curl': descText = "ISOLATING: Hamstrings (Machine) | INTENSITY: Moderate"; break;
             case 'fullbody': descText = "ISOLATING: Full Body Power | INTENSITY: Maximal"; break;
-            case 'deadlift': descText = "ISOLATING: Posterior Chain | INTENSITY: High"; break;
             case 'idle': descText = "ISOLATING: Neutral / Recovery | INTENSITY: Rest"; break;
             default: descText = "ISOLATING: Selected Movement | INTENSITY: Varies";
         }
         document.getElementById('vis-desc').innerText = descText;
-
-        // Set AnimState directly from dropdown
-        this.animState = exerciseId;
-        if (exerciseId === 'deadlift') this.animState = 'squat'; // fallback
-
 
         // Cyber Colors
         const colors = {
@@ -1236,132 +1475,40 @@ const app = {
 
         let equipmentHTML = "";
 
-        // Setup state variables based on exercise to trigger procedural motion in animate loop
-        this.animState = 'idle';
+        this.animState = exerciseId;
 
-        // Apply specific highlighting logic mapped to detailed muscle groups
-        if (day.phase === 'Recovery') {
-            this.animState = 'idle';
-            allMuscles.forEach(p => setPartColor(p, 'rec'));
-            equipmentHTML = `
-                <li><strong>Modality:</strong> Foam Roller / Massage Gun</li>
-                <li><strong>Protocol:</strong> Static stretching, parasympathetic breathing (CNS Downregulation).</li>
-            `;
-        } else if (day.focus.includes('Lower Body')) {
-            this.animState = 'squat';
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            lowerFront.forEach(p => setPartColor(p, state));
-            lowerBack.forEach(p => setPartColor(p, state));
-            joints.forEach(p => setPartColor(p, 'mod')); // Joints take moderate load
-            upperFront.forEach(p => setPartColor(p, 'rec'));
-            upperBack.forEach(p => setPartColor(p, 'rec'));
-            equipmentHTML = `
-                <li><strong>Primary:</strong> STAR TRAC™ Inspiration Leg Press / Hack Squat (Targets Quads/Glutes)</li>
-                <li><strong>Secondary:</strong> STAR TRAC™ Instinct Leg Extension / Curl (Isolates Quads/Hamstrings)</li>
-                <li><strong>Alternative:</strong> Dumbbell Bulgarian Split Squats</li>
-            `;
-                } else if (day.focus.includes('Upper Body')) {
-            this.animState = 'press';
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperFront.forEach(p => setPartColor(p, state));
-            upperBack.forEach(p => setPartColor(p, state));
-            shoulders.forEach(p => setPartColor(p, state));
-            arms.forEach(p => setPartColor(p, state));
-            lowerFront.forEach(p => setPartColor(p, 'rec'));
-            lowerBack.forEach(p => setPartColor(p, 'rec'));
-            equipmentHTML = `
-                <li><strong>Primary:</strong> STAR TRAC™ Inspiration Chest Press (Pecs/Delts) / Lat Pulldown (Lats/Biceps)</li>
-                <li><strong>Secondary:</strong> Dual Adjustable Pulley Cable Crossovers</li>
-            `;
-        } else if (day.focus.includes('Full Body Strength')) {
-            this.animState = 'fullbody';
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperFront.forEach(p => setPartColor(p, state));
-            upperBack.forEach(p => setPartColor(p, state));
-            shoulders.forEach(p => setPartColor(p, state));
-            arms.forEach(p => setPartColor(p, state));
-            lowerFront.forEach(p => setPartColor(p, state));
-            lowerBack.forEach(p => setPartColor(p, state));
-            joints.forEach(p => setPartColor(p, 'mod'));
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Barbell Thrusters / Clean and Press (Full Chain Engagement)</li>
-                <li><strong>Secondary:</strong> Hex Bar Deadlifts (Glutes/Hamstrings/Core/Traps)</li>
-                <li><strong>Alternative:</strong> STAR TRAC™ Max Rack Multi-Joint Compound Movements</li>
-            `;
-        } else if (day.focus.includes('Jump Rope')) {
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            lowerBack.forEach(p => setPartColor(p, state)); // Calves highly active
-            lowerFront.forEach(p => setPartColor(p, 'mod')); // Quads synergists
-            shoulders.forEach(p => setPartColor(p, 'mod')); // Delts stabilize
-            arms.forEach(p => setPartColor(p, 'mod')); // Forearms twirl
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Speed Rope / Jump Rope Intervals</li>
-                <li><strong>Metabolic Engine:</strong> Anaerobic / Aerobic Hybrid System</li>
-                <li><strong>Muscle Focus:</strong> High recruitment of Gastrocnemius (Calves) and Soleus.</li>
-            `;
-        } else if (day.focus.includes('Boxing')) {
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperFront.forEach(p => setPartColor(p, 'mod')); // Core twist
-            shoulders.forEach(p => setPartColor(p, state)); // Delts fatigue fast
-            arms.forEach(p => setPartColor(p, state)); // Triceps for extension
-            lowerFront.forEach(p => setPartColor(p, 'mod')); // Leg drive
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Heavy Bag (Boxing Flow / Sprints)</li>
-                <li><strong>Metabolic Engine:</strong> Anaerobic Glycolysis System</li>
-                <li><strong>Muscle Focus:</strong> Anterior Deltoids, Triceps Brachii, Obliques for rotational power.</li>
-            `;
-        } else if (day.focus.includes('Calisthenics')) {
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperBack.forEach(p => setPartColor(p, state)); // Lats for pullups
-            arms.forEach(p => setPartColor(p, state)); // Biceps and Triceps for dips/pullups
-            upperFront.forEach(p => setPartColor(p, 'mod')); // Pecs for dips, abs for stability
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Gymnastic Rings / Pull-up Bar</li>
-                <li><strong>Focus:</strong> Relative bodyweight mastery, scapular control, and structural leverage.</li>
-                <li><strong>Muscle Focus:</strong> Latissimus Dorsi, Biceps Brachii, Pectoralis Major, Core.</li>
-            `;
-        } else if (day.focus.includes('Core / Gymnastic Rings')) {
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'oblique_l', 'oblique_r'].forEach(p => setPartColor(p, state)); // Intense core
-            upperBack.forEach(p => setPartColor(p, 'mod')); // Stabilization
-            shoulders.forEach(p => setPartColor(p, 'mod')); // Stabilization
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Gymnastic Rings / Floor Mat</li>
-                <li><strong>Focus:</strong> Anti-extension, anti-rotation, and isometric holds (L-Sits, Planks).</li>
-                <li><strong>Muscle Focus:</strong> Rectus Abdominis, Transverse Abdominis, Obliques.</li>
-            `;
-        } else if (day.focus.includes('Maximal Output')) {
-            this.animState = 'squat'; // Represent heavy lifts with squat for now
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            lowerBack.forEach(p => setPartColor(p, state)); // Glutes/Hams for Deadlift
-            lowerFront.forEach(p => setPartColor(p, state)); // Quads for Squat
-            upperBack.forEach(p => setPartColor(p, state)); // Back for Deadlift
-            upperFront.forEach(p => setPartColor(p, 'mod')); // Pecs for Bench
-            arms.forEach(p => setPartColor(p, 'mod')); // Arms for support
-            shoulders.forEach(p => setPartColor(p, 'mod')); // Shoulders for Bench
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Olympic Barbell, Squat Rack, Platform</li>
-                <li><strong>Focus:</strong> Maximal central nervous system (CNS) recruitment. 1RM-3RM loads.</li>
-                <li><strong>Muscle Focus:</strong> Entire kinetic chain (Glutes, Quads, Erector Spinae, Pectoralis).</li>
-            `;
-        } else if (day.focus.includes('Powerlifting Accessory')) {
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            upperBack.forEach(p => setPartColor(p, state));
-            arms.forEach(p => setPartColor(p, state));
-            shoulders.forEach(p => setPartColor(p, state));
-            lowerBack.forEach(p => setPartColor(p, 'mod')); // Hamstrings
-            equipmentHTML = `
-                <li><strong>Primary:</strong> Dumbbells / Cable Machines</li>
-                <li><strong>Focus:</strong> Isolating weak links in the main lifts (e.g., triceps for bench, hamstrings for deadlift).</li>
-            `;
-        } else {
-            // Full body default
-            const state = day.intensity === 'High' ? 'high' : 'mod';
-            allMuscles.forEach(p => setPartColor(p, state));
-            equipmentHTML = `
-                <li><strong>Primary:</strong> STAR TRAC™ Multi-Station / Free Weights</li>
-                <li><strong>Focus:</strong> Compound structural movements recruiting maximum motor units across kinetic chain.</li>
-            `;
+        // Map muscle highlights to the dictionary selection
+        allMuscles.forEach(p => setPartColor(p, 'rec'));
+
+        const map = this.MovementMap[exerciseId] || this.MovementMap['idle'];
+
+        if (map.primary) map.primary.forEach(p => setPartColor(p, 'high'));
+        if (map.synergists) map.synergists.forEach(p => setPartColor(p, 'mod'));
+
+        if (exerciseId === 'idle') {
+            equipmentHTML = `<li><strong>Modality:</strong> Foam Roller / Massage Gun</li><li><strong>Protocol:</strong> Static stretching, parasympathetic breathing.</li>`;
+        } else if (exerciseId === 'squat') {
+            equipmentHTML = `<li><strong>Primary:</strong> Olympic Barbell, Squat Rack</li><li><strong>Focus:</strong> Hip and knee extension, driving vertically.</li>`;
+        } else if (exerciseId === 'deadlift') {
+            equipmentHTML = `<li><strong>Primary:</strong> Olympic Barbell, Platform</li><li><strong>Focus:</strong> Hip hinge, posterior chain engagement.</li>`;
+        } else if (exerciseId === 'press') {
+            equipmentHTML = `<li><strong>Primary:</strong> Flat Bench, Olympic Barbell</li><li><strong>Focus:</strong> Horizontal pressing, elbow extension.</li>`;
+        } else if (exerciseId === 'pullup') {
+            equipmentHTML = `<li><strong>Primary:</strong> Pull-up Bar</li><li><strong>Focus:</strong> Vertical pulling, elbow flexion.</li>`;
+        } else if (exerciseId === 'overhead_press') {
+            equipmentHTML = `<li><strong>Primary:</strong> Olympic Barbell, Rack</li><li><strong>Focus:</strong> Vertical pressing, shoulder stabilization.</li>`;
+        } else if (exerciseId === 'barbell_row') {
+            equipmentHTML = `<li><strong>Primary:</strong> Olympic Barbell</li><li><strong>Focus:</strong> Horizontal pulling, hip hinge static hold.</li>`;
+        } else if (exerciseId === 'bicep_curl') {
+            equipmentHTML = `<li><strong>Primary:</strong> EZ-Curl Bar / Dumbbells</li><li><strong>Focus:</strong> Elbow flexion isolation.</li>`;
+        } else if (exerciseId === 'triceps_pushdown') {
+            equipmentHTML = `<li><strong>Primary:</strong> Cable Machine, Rope Attachment</li><li><strong>Focus:</strong> Elbow extension isolation.</li>`;
+        } else if (exerciseId === 'leg_extension') {
+            equipmentHTML = `<li><strong>Primary:</strong> Leg Extension Machine</li><li><strong>Focus:</strong> Knee extension isolation.</li>`;
+        } else if (exerciseId === 'leg_curl') {
+            equipmentHTML = `<li><strong>Primary:</strong> Leg Curl Machine (Seated or Prone)</li><li><strong>Focus:</strong> Knee flexion isolation.</li>`;
+        } else if (exerciseId === 'fullbody') {
+            equipmentHTML = `<li><strong>Primary:</strong> Barbell Thrusters / Clean and Press</li><li><strong>Focus:</strong> Full kinetic chain engagement.</li>`;
         }
 
         document.getElementById('vis-equipment').innerHTML = equipmentHTML;
@@ -1733,101 +1880,6 @@ const app = {
         }
 
         recipeBox.innerHTML = recipeHTML;
-    },
-    syncJuicerInput(ingredient, type) {
-        const unitInput = document.getElementById(`ing-${ingredient}`);
-        const gramInput = document.getElementById(`ing-${ingredient}-g`);
-
-        const weights = {
-            beetroot: 130, carrot: 60, celery: 40, spinach: 30,
-            apple: 180, orange: 130, lemon: 50, ginger: 10,
-            mint: 2, potato: 150, cucumber: 300, pineapple: 900, kale: 20
-        };
-        const weight = weights[ingredient] || 100;
-
-        if (type === 'unit' && unitInput.value !== '') {
-            gramInput.value = Math.round(unitInput.value * weight);
-        } else if (type === 'g' && gramInput.value !== '') {
-            unitInput.value = (gramInput.value / weight).toFixed(1);
-        } else if (unitInput.value === '' || gramInput.value === '') {
-            if(type === 'unit') gramInput.value = '';
-            if(type === 'g') unitInput.value = '';
-        }
-    },
-
-    calculateJuice() {
-        const ingredientsList = ['beetroot', 'carrot', 'celery', 'spinach', 'apple', 'orange', 'lemon', 'ginger', 'mint', 'potato', 'cucumber', 'pineapple', 'kale'];
-        let totalSugar = 0; let totalGrams = 0; let acidityScore = 0;
-        let hazards = []; let tableHTML = "";
-
-        const db = {
-            beetroot: { sugar: 7, acidity: 0, color: '#9d174d', name: 'Beetroot', benefit: 'Nitrates for vasodilation' },
-            carrot: { sugar: 5, acidity: 0, color: '#ea580c', name: 'Carrot', benefit: 'Beta-carotene for eye health' },
-            celery: { sugar: 1, acidity: 1, color: '#84cc16', name: 'Celery', benefit: 'Hydration and electrolytes' },
-            spinach: { sugar: 0.4, acidity: 0.5, color: '#15803d', name: 'Spinach', benefit: 'Iron and Vitamin K', hazard: 'High oxalates (kidney stone risk)' },
-            apple: { sugar: 10, acidity: -1, color: '#fef08a', name: 'Apple', benefit: 'Pectin and natural energy' },
-            orange: { sugar: 9, acidity: -2, color: '#f97316', name: 'Orange', benefit: 'Vitamin C (Ascorbic Acid)' },
-            lemon: { sugar: 2, acidity: -4, color: '#fef08a', name: 'Lemon', benefit: 'Alkalizing post-digestion, high Vitamin C', hazard: 'Enamel erosion risk' },
-            ginger: { sugar: 1, acidity: 0, color: '#fde047', name: 'Ginger', benefit: 'Gingerol for anti-inflammation', hazard: 'May cause heartburn in large doses' },
-            mint: { sugar: 0, acidity: 0.5, color: '#16a34a', name: 'Mint', benefit: 'Digestion aid and flavor' },
-            potato: { sugar: 1, acidity: 0, color: '#fcd34d', name: 'Potato', benefit: 'Potassium rich (Requires cooking for safe starch digestion)', hazard: 'Raw potato starch can cause GI distress' },
-            cucumber: { sugar: 1.7, acidity: 1, color: '#4ade80', name: 'Cucumber', benefit: 'Deep cellular hydration' },
-            pineapple: { sugar: 10, acidity: -2, color: '#facc15', name: 'Pineapple', benefit: 'Bromelain for digestion/recovery', hazard: 'High glycemic index' },
-            kale: { sugar: 1, acidity: 0.5, color: '#14532d', name: 'Kale', benefit: 'Folate, Vitamin K, and Antioxidants', hazard: 'Goitrogens (affects thyroid function if raw in large amounts)' }
-        };
-
-        ingredientsList.forEach(ing => {
-            const gInput = document.getElementById(`ing-${ing}-g`);
-            if (gInput && gInput.value > 0) {
-                const g = parseFloat(gInput.value);
-                const info = db[ing];
-                totalGrams += g;
-
-                const sugar = (info.sugar / 100) * g;
-                totalSugar += sugar;
-                acidityScore += (info.acidity * (g/100));
-
-                tableHTML += `<tr><td>${info.name}</td><td>${g}g</td><td>${sugar.toFixed(1)}g</td><td>${info.benefit}</td></tr>`;
-                if (info.hazard && g > 50 && !hazards.includes(info.hazard)) hazards.push(info.hazard);
-            }
-        });
-
-        if (totalGrams === 0) {
-            document.getElementById('juicer-empty-state').style.display = 'block';
-            document.getElementById('juicer-analysis-card').style.display = 'none';
-            return;
-        }
-
-        let mainColor = '#84cc16';
-        if (document.getElementById('ing-beetroot-g') && document.getElementById('ing-beetroot-g').value > 10) mainColor = '#9d174d';
-        else if (document.getElementById('ing-carrot-g') && document.getElementById('ing-carrot-g').value > 50) mainColor = '#ea580c';
-
-        let estimatedPh = 7.0 + (acidityScore / (totalGrams/100 || 1));
-        if (estimatedPh < 3.0) estimatedPh = 3.0;
-        if (estimatedPh > 8.0) estimatedPh = 8.0;
-
-        if (totalSugar > 25) hazards.push("High Sugar Load (>25g). May spike insulin. Consider adding more greens or limiting fruit.");
-
-        document.getElementById('juice-sugar').innerText = totalSugar.toFixed(1) + 'g';
-        document.getElementById('juice-sugar').style.color = totalSugar > 25 ? '#ef4444' : '#10b981';
-        document.getElementById('juice-ph').innerText = estimatedPh.toFixed(1);
-        document.getElementById('juice-ph').style.color = estimatedPh < 4.0 ? '#ef4444' : '#3b82f6';
-        document.getElementById('juice-color-swatch').style.background = mainColor;
-
-        const hazardsHTML = hazards.length > 0
-            ? hazards.map(h => `<li style="color: #ef4444; margin-bottom: 0.25rem;">${h}</li>`).join('')
-            : `<li style="color: #10b981;">No immediate hazards detected. Balanced profile.</li>`;
-
-        if (!document.getElementById('juicer-hazards-list')) {
-            const tableParent = document.getElementById('juice-nutrient-table').parentNode;
-            const hazardDiv = document.createElement('div');
-            hazardDiv.innerHTML = '<h5 style="margin-top: 1rem; color: #ef4444;">Hazards</h5><ul id="juicer-hazards-list" style="font-size: 0.8rem;"></ul>';
-            tableParent.parentNode.appendChild(hazardDiv);
-        }
-        document.getElementById('juicer-hazards-list').innerHTML = hazardsHTML;
-        document.getElementById('juice-nutrient-table').innerHTML = tableHTML;
-        document.getElementById('juicer-empty-state').style.display = 'none';
-        document.getElementById('juicer-analysis-card').style.display = 'block';
     }
 };
 
