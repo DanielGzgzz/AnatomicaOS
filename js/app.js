@@ -1086,34 +1086,164 @@ const app = {
 
                 } else if (this.animState === 'press') {
             const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
-            const recipe = this.exerciseRecipes.press;
+            const push = lerp(this.exerciseRecipes.press.start.push, this.exerciseRecipes.press.mid.push, phase);
 
-            // Interpolate values
-            const push = lerp(recipe.start.push, recipe.mid.push, phase);
+            // Rotate Deltoids
+            ['delt_l', 'delt_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
+                }
+            });
 
+            // Move Upper Arms (biceps/triceps)
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.8;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1.5;
+                }
+            });
 
-            // Move arms forward
+            // Move elbows to track upper arm
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2.0;
+                }
+            });
+
+            // Move forearms
             ['forearm_l', 'forearm_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 2.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2.8;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.5;
+                }
+            });
+
+            // Move hands (palms keep connectivity to forearms via additive math)
+            ['hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 2.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 3.4;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.8;
+                }
+            });
+        } else if (this.animState === 'fullbody') {
+            // Thruster = Squat + Overhead Press
+            const phase = (Math.sin(this.time * 2.0) + 1) / 2; // 0 to 1 smooth
+            const recipe = this.exerciseRecipes.fullbody;
+            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
+            const push = lerp(recipe.start.push, recipe.mid.push, phase); // Overhead push is inverse of drop usually, but let's do continuous
+
+            // Torso drops for the squat part
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r'];
+            torsoParts.forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
+                }
+            });
+
+            // Legs squatting
+            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
+                }
+            });
+            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
+                }
+            });
+            ['knee_l', 'knee_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
+                }
+            });
+
+            // Arms: If drop is 0 (standing), push is high. If drop is high (squatting), push is 0.
+            // Let's use the phase directly to drive arms up when standing
+            // phase 0 = top of rep (arms up). phase 1 = bottom of rep (arms racked on shoulders).
+            const overheadPush = (1 - phase) * 2.5;
+
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + overheadPush;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + overheadPush * 0.4;
+                }
+            });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + overheadPush * 1.5;
+                }
+            });
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + overheadPush * 1.8;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + overheadPush * 0.5;
                 }
             });
             ['hand_l', 'hand_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2.2;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.1;
-                    // Rotate palm to face forward during press (like pushing a barbell)
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * Math.PI/2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + overheadPush * 2.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - overheadPush * 0.2; // Point palms up
                 }
             });
 
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+        } else if (this.animState === 'deadlift') {
+            const phase = (Math.sin(this.time * 2.0) + 1) / 2; // 0 to 1 smooth
+
+            // Hinge at the hips
+            const hinge = phase * 1.5; // Max hinge
+            const kneeBend = phase * 0.5; // Slight knee bend
+
+            // Torso hinges forward
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','delt_l', 'delt_r'];
+            torsoParts.forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.0;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 0.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.5;
                 }
             });
+
+            // Pelvis and glutes hinge but stay anchored relatively
+            ['pelvis','glute_l','glute_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.5; // push hips back
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.2;
+                }
+            });
+
+            // Arms hang straight down from the hinged shoulders
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.0;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x; // Hang straight down, no rotation
+                }
+            });
+
+            // Legs slight bend
+            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + kneeBend * 0.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - kneeBend * 0.2;
+                }
+            });
+            ['knee_l', 'knee_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + kneeBend * 0.5;
+                }
+            });
+
         } else {
             // Reset to base positions
             Object.keys(this.bodyParts).forEach(p => {
@@ -1176,6 +1306,14 @@ const app = {
             // Highlight
             const colors = { high: 0xef4444, mod: 0x3b82f6 };
             ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+        } else if (exType === 'deadlift') {
+            desc = "ISOLATING: Posterior Chain | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Deadlift (Glutes, Hamstrings, Erector Spinae)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
         }
 
         document.getElementById('vis-desc').innerText = desc;
@@ -1501,6 +1639,137 @@ const app = {
         } else {
             container.style.display = 'none';
         }
+    },
+
+
+    // --- JUICER MODULE ---
+
+    juicerDB: {
+        beetroot: { name: 'Beetroot', unitName: '1 Medium Beet', gPerUnit: 136, cals: 58, sugar: 9, ph: 5.5, vitA_mcg: 2, vitC_mg: 6.7, calc_mg: 22, iron_mg: 1.1, mag_mg: 31, pot_mg: 442, color: [138, 15, 61], benefits: ["Nitrates improve blood flow", "Liver support (Betaine)"], hazards: ["High in oxalates", "Beeturia (red urine)"] },
+        carrot: { name: 'Carrot', unitName: '1 Medium Carrot', gPerUnit: 61, cals: 25, sugar: 2.9, ph: 6.0, vitA_mcg: 509, vitC_mg: 3.6, calc_mg: 20, iron_mg: 0.18, mag_mg: 7, pot_mg: 195, color: [237, 145, 33], benefits: ["High Beta-Carotene (Vision)", "Antioxidant rich"], hazards: ["Carotenemia (orange skin) in extreme excess"] },
+        celery: { name: 'Celery', unitName: '1 Stalk', gPerUnit: 40, cals: 6, sugar: 0.5, ph: 5.8, vitA_mcg: 18, vitC_mg: 1.2, calc_mg: 16, iron_mg: 0.08, mag_mg: 4, pot_mg: 104, color: [168, 228, 160], benefits: ["Hydration", "Apigenin (Anti-inflammatory)"], hazards: ["High sodium relative to other veg"] },
+        spinach: { name: 'Spinach', unitName: '1 Cup Raw', gPerUnit: 30, cals: 7, sugar: 0.1, ph: 6.5, vitA_mcg: 141, vitC_mg: 8.4, calc_mg: 30, iron_mg: 0.81, mag_mg: 24, pot_mg: 167, color: [50, 100, 30], benefits: ["Folate", "Vitamin K"], hazards: ["High oxalates (binds calcium)"] },
+        kale: { name: 'Kale', unitName: '1 Cup Raw', gPerUnit: 21, cals: 8, sugar: 0.2, ph: 6.6, vitA_mcg: 53, vitC_mg: 19.6, calc_mg: 53, iron_mg: 0.3, mag_mg: 7, pot_mg: 73, color: [40, 80, 40], benefits: ["Lutein/Zeaxanthin", "High Vitamin K/C"], hazards: ["Goitrogens (thyroid interference raw)"] },
+        cucumber: { name: 'Cucumber', unitName: '1/2 Medium', gPerUnit: 100, cals: 15, sugar: 1.7, ph: 5.5, vitA_mcg: 5, vitC_mg: 2.8, calc_mg: 16, iron_mg: 0.28, mag_mg: 13, pot_mg: 147, color: [152, 251, 152], benefits: ["Hydration", "Silica (skin health)"], hazards: [] },
+        potato: { name: 'Sweet Potato', unitName: '1 Medium', gPerUnit: 130, cals: 112, sugar: 5.4, ph: 5.4, vitA_mcg: 961, vitC_mg: 3.1, calc_mg: 39, iron_mg: 0.8, mag_mg: 33, pot_mg: 438, color: [224, 141, 60], benefits: ["Complex carbs", "Massive Vitamin A"], hazards: ["Must be cooked/steamed if juicing"] },
+        apple: { name: 'Apple', unitName: '1 Medium', gPerUnit: 182, cals: 95, sugar: 18.9, ph: 3.5, vitA_mcg: 5, vitC_mg: 8.4, calc_mg: 11, iron_mg: 0.2, mag_mg: 9, pot_mg: 195, color: [230, 230, 180], benefits: ["Quercetin", "Pectin (gut health)"], hazards: ["High fructose"] },
+        orange: { name: 'Orange', unitName: '1 Medium', gPerUnit: 131, cals: 62, sugar: 12.2, ph: 3.9, vitA_mcg: 15, vitC_mg: 69.7, calc_mg: 52, iron_mg: 0.13, mag_mg: 13, pot_mg: 237, color: [255, 165, 0], benefits: ["High Vitamin C", "Citric acid (prevents stones)"], hazards: ["High acidity", "Sugar load if skin removed"] },
+        pineapple: { name: 'Pineapple', unitName: '1 Cup Chunks', gPerUnit: 165, cals: 82, sugar: 16.3, ph: 3.4, vitA_mcg: 5, vitC_mg: 78.9, calc_mg: 21, iron_mg: 0.48, mag_mg: 20, pot_mg: 180, color: [255, 235, 100], benefits: ["Bromelain (digestion)", "High Vitamin C"], hazards: ["Highly acidic", "Can irritate oral mucosa"] },
+        lemon: { name: 'Lemon', unitName: '1/2 Lemon Juice', gPerUnit: 24, cals: 7, sugar: 0.6, ph: 2.2, vitA_mcg: 0, vitC_mg: 9.3, calc_mg: 2, iron_mg: 0.02, mag_mg: 1, pot_mg: 25, color: [255, 255, 150], benefits: ["Liver flushing", "Alkalizing post-digestion"], hazards: ["Enamel erosion (highly acidic)"] },
+        ginger: { name: 'Ginger', unitName: '1 Inch Root', gPerUnit: 24, cals: 19, sugar: 0.4, ph: 5.8, vitA_mcg: 0, vitC_mg: 1.2, calc_mg: 4, iron_mg: 0.14, mag_mg: 10, pot_mg: 100, color: [220, 200, 150], benefits: ["Gingerol (anti-nausea/anti-inflammatory)", "Gastric motility"], hazards: ["Spicy/Heartburn in excess"] },
+        mint: { name: 'Mint', unitName: '10 Leaves', gPerUnit: 2, cals: 1, sugar: 0, ph: 6.5, vitA_mcg: 4, vitC_mg: 0.6, calc_mg: 5, iron_mg: 0.1, mag_mg: 1, pot_mg: 11, color: [20, 150, 50], benefits: ["Menthol (digestion)", "Flavor enhancer"], hazards: [] }
+    },
+
+    syncJuicerInput(item, changed) {
+        const db = this.juicerDB[item];
+        const elUnit = document.getElementById(`ing-${item}`);
+        const elG = document.getElementById(`ing-${item}-g`);
+
+        if (changed === 'unit') {
+            const units = parseFloat(elUnit.value) || 0;
+            if (units === 0) elG.value = '';
+            else elG.value = Math.round(units * db.gPerUnit);
+        } else {
+            const g = parseFloat(elG.value) || 0;
+            if (g === 0) elUnit.value = '';
+            else elUnit.value = (g / db.gPerUnit).toFixed(1);
+        }
+    },
+
+    calculateJuice() {
+        let totalStats = {
+            cals: 0, sugar: 0, vitA: 0, vitC: 0, calc: 0, iron: 0, mag: 0, pot: 0,
+            weight: 0, totalPh: 0, ingredients: []
+        };
+        let colorSum = [0, 0, 0];
+        let benefits = new Set();
+        let hazards = new Set();
+
+        for (const [key, db] of Object.entries(this.juicerDB)) {
+            const g = parseFloat(document.getElementById(`ing-${key}-g`)?.value) || 0;
+            if (g > 0) {
+                const ratio = g / 100; // Database values are per 100g? Wait, I made them per unit.
+                // Let's normalize DB to per gram for math.
+                const perGram = {
+                    cals: db.cals / db.gPerUnit,
+                    sugar: db.sugar / db.gPerUnit,
+                    vitA: db.vitA_mcg / db.gPerUnit,
+                    vitC: db.vitC_mg / db.gPerUnit,
+                    calc: db.calc_mg / db.gPerUnit,
+                    iron: db.iron_mg / db.gPerUnit,
+                    mag: db.mag_mg / db.gPerUnit,
+                    pot: db.pot_mg / db.gPerUnit
+                };
+
+                totalStats.cals += perGram.cals * g;
+                totalStats.sugar += perGram.sugar * g;
+                totalStats.vitA += perGram.vitA * g;
+                totalStats.vitC += perGram.vitC * g;
+                totalStats.calc += perGram.calc * g;
+                totalStats.iron += perGram.iron * g;
+                totalStats.mag += perGram.mag * g;
+                totalStats.pot += perGram.pot * g;
+
+                // pH is logarithmic, but we'll do a weighted average by weight for simplicity in this demo.
+                totalStats.totalPh += db.ph * g;
+                totalStats.weight += g;
+
+                // Color mixing (weighted)
+                colorSum[0] += db.color[0] * g;
+                colorSum[1] += db.color[1] * g;
+                colorSum[2] += db.color[2] * g;
+
+                db.benefits.forEach(b => benefits.add(b));
+                db.hazards.forEach(h => hazards.add(h));
+            }
+        }
+
+        const outCard = document.getElementById('juicer-analysis-card');
+        const emptyState = document.getElementById('juicer-empty-state');
+
+        if (totalStats.weight === 0) {
+            outCard.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        outCard.style.display = 'block';
+
+        const estPh = (totalStats.totalPh / totalStats.weight).toFixed(1);
+
+        document.getElementById('juice-cals').innerText = Math.round(totalStats.cals);
+        document.getElementById('juice-sugar').innerText = totalStats.sugar.toFixed(1) + 'g';
+        document.getElementById('juice-ph').innerText = estPh;
+
+        const r = Math.round(colorSum[0] / totalStats.weight);
+        const g = Math.round(colorSum[1] / totalStats.weight);
+        const b = Math.round(colorSum[2] / totalStats.weight);
+        document.getElementById('juice-color-swatch').style.background = `rgb(${r},${g},${b})`;
+
+        // Populate Benefits/Hazards
+        const benEl = document.getElementById('juice-benefits');
+        benEl.innerHTML = '';
+        benefits.forEach(b => benEl.innerHTML += `<li>${b}</li>`);
+        if(benefits.size === 0) benEl.innerHTML = "<li>No specific clinical benefits identified.</li>";
+
+        const hazEl = document.getElementById('juice-hazards');
+        hazEl.innerHTML = '';
+        hazards.forEach(h => hazEl.innerHTML += `<li>${h}</li>`);
+        if (estPh < 4.0) hazEl.innerHTML += "<li><strong>High Acidity:</strong> May cause enamel erosion or heartburn. Dilute or consume quickly.</li>";
+        if (totalStats.sugar > 40) hazEl.innerHTML += "<li><strong>High Sugar Load:</strong> May spike insulin. Consider adding fiber/greens.</li>";
+        if(hazEl.innerHTML === '') hazEl.innerHTML = "<li>No major hazards.</li>";
+
+        // Macros vs RDA (Estimates for standard adult male)
+        const table = document.getElementById('juice-nutrient-table');
+        table.innerHTML = `
+            <tr><td>Vitamin A</td><td>${Math.round(totalStats.vitA)} mcg</td><td>${Math.round((totalStats.vitA / 900) * 100)}%</td></tr>
+            <tr><td>Vitamin C</td><td>${Math.round(totalStats.vitC)} mg</td><td>${Math.round((totalStats.vitC / 90) * 100)}%</td></tr>
+            <tr><td>Calcium</td><td>${Math.round(totalStats.calc)} mg</td><td>${Math.round((totalStats.calc / 1000) * 100)}%</td></tr>
+            <tr><td>Iron</td><td>${totalStats.iron.toFixed(1)} mg</td><td>${Math.round((totalStats.iron / 8) * 100)}%</td></tr>
+            <tr><td>Magnesium</td><td>${Math.round(totalStats.mag)} mg</td><td>${Math.round((totalStats.mag / 400) * 100)}%</td></tr>
+            <tr><td>Potassium</td><td>${Math.round(totalStats.pot)} mg</td><td>${Math.round((totalStats.pot / 3400) * 100)}%</td></tr>
+        `;
     },
 
     translateJuice() {
