@@ -3,6 +3,102 @@
  */
 
 const app = {
+
+    // --- JUICER LOGIC ---
+    juicerData: {
+        beetroot: { weight: 136, color: [138, 3, 50], sugar: 9, vitC: 6, iron: 1.1, potas: 442, acidity: 'mod', notes: "High nitrates for vasodilation." },
+        carrot: { weight: 61, color: [237, 145, 33], sugar: 3, vitC: 4, iron: 0.2, potas: 195, acidity: 'low', notes: "Beta-carotene for vision." },
+        celery: { weight: 40, color: [166, 214, 136], sugar: 1, vitC: 1, iron: 0.1, potas: 104, acidity: 'low', notes: "Hydration and electrolytes." },
+        spinach: { weight: 30, color: [46, 107, 44], sugar: 0.1, vitC: 8, iron: 0.8, potas: 167, acidity: 'low', notes: "Iron and folate dense." },
+        kale: { weight: 21, color: [34, 139, 34], sugar: 0.5, vitC: 25, iron: 0.3, potas: 103, acidity: 'low', notes: "High Vitamin K and C." },
+        cucumber: { weight: 300, color: [162, 228, 184], sugar: 5, vitC: 8, iron: 0.8, potas: 442, acidity: 'low', notes: "Silica for skin health, highly hydrating." },
+        potato: { weight: 213, color: [222, 184, 135], sugar: 3, vitC: 42, iron: 1.6, potas: 897, acidity: 'low', notes: "Resistant starch, high potassium." },
+        apple: { weight: 182, color: [210, 226, 148], sugar: 19, vitC: 8, iron: 0.2, potas: 195, acidity: 'mod', notes: "Pectin fiber." },
+        orange: { weight: 131, color: [255, 165, 0], sugar: 12, vitC: 70, iron: 0.1, potas: 237, acidity: 'high', notes: "Vitamin C burst." },
+        lemon: { weight: 29, color: [255, 247, 0], sugar: 1, vitC: 15, iron: 0.2, potas: 40, acidity: 'high', notes: "Alkalizing effect post-digestion." },
+        pineapple: { weight: 165, color: [255, 223, 0], sugar: 16, vitC: 79, iron: 0.5, potas: 180, acidity: 'high', notes: "Bromelain for digestion/inflammation." },
+        ginger: { weight: 10, color: [238, 224, 177], sugar: 0.2, vitC: 0.5, iron: 0.1, potas: 41, acidity: 'low', notes: "Anti-inflammatory." },
+        mint: { weight: 2, color: [62, 142, 65], sugar: 0, vitC: 1, iron: 0.1, potas: 9, acidity: 'low', notes: "Digestive aid, phytonutrients." },
+        turmeric: { weight: 5, color: [255, 153, 0], sugar: 0.1, vitC: 1.3, iron: 2.1, potas: 126, acidity: 'low', notes: "Curcumin." }
+    },
+
+    syncJuicerInput(ing, type) {
+        const data = this.juicerData[ing];
+        const elUnit = document.getElementById(`ing-${ing}`);
+        const elG = document.getElementById(`ing-${ing}-g`);
+        if (!elUnit || !elG || !data) return;
+        if(type === 'unit') {
+            const val = parseFloat(elUnit.value) || 0;
+            elG.value = (val * data.weight).toFixed(1);
+        } else {
+            const val = parseFloat(elG.value) || 0;
+            elUnit.value = (val / data.weight).toFixed(2);
+        }
+    },
+
+    calculateJuice() {
+        let totalWeight = 0, totalSugar = 0, totalVitC = 0, totalIron = 0, totalPotas = 0;
+        let cR = 0, cG = 0, cB = 0;
+        let highAcidCount = 0;
+        let used = [];
+
+        Object.keys(this.juicerData).forEach(ing => {
+            const el = document.getElementById(`ing-${ing}-g`);
+            const grams = parseFloat(el?.value) || 0;
+            if (grams > 0) {
+                const data = this.juicerData[ing];
+                const ratio = grams / 100;
+                totalWeight += grams;
+                totalSugar += data.sugar * ratio;
+                totalVitC += data.vitC * ratio;
+                totalIron += data.iron * ratio;
+                totalPotas += data.potas * ratio;
+
+                cR += data.color[0] * grams;
+                cG += data.color[1] * grams;
+                cB += data.color[2] * grams;
+
+                if (data.acidity === 'high') highAcidCount++;
+                used.push(data.notes);
+            }
+        });
+
+        if (totalWeight === 0) return;
+
+        cR = Math.round(cR / totalWeight);
+        cG = Math.round(cG / totalWeight);
+        cB = Math.round(cB / totalWeight);
+
+        const colorStr = `rgb(${cR}, ${cG}, ${cB})`;
+        const colorSwatch = document.getElementById('juice-color-swatch');
+        if (colorSwatch) colorSwatch.style.background = colorStr;
+
+        const sugarEl = document.getElementById('juice-sugar');
+        if (sugarEl) {
+            sugarEl.innerText = `${totalSugar.toFixed(1)}g`;
+            sugarEl.style.color = totalSugar > 30 ? 'var(--alert)' : 'var(--text-main)';
+        }
+
+        const vitcEl = document.getElementById('juice-vitc');
+        if (vitcEl) vitcEl.value = totalVitC;
+        const ironEl = document.getElementById('juice-iron');
+        if (ironEl) ironEl.value = totalIron;
+        const potasEl = document.getElementById('juice-potas');
+        if (potasEl) potasEl.value = totalPotas;
+
+        let hazard = "Optimal mix.";
+        if (totalSugar > 40) hazard = "WARNING: Glycemic load critically high. Dilute or add fiber.";
+        else if (highAcidCount > 2) hazard = "WARNING: High acidity. May erode enamel. Consume quickly or use a straw.";
+
+        const hazardEl = document.getElementById('juice-hazards');
+        if (hazardEl) hazardEl.innerText = hazard;
+        const notesEl = document.getElementById('juice-notes');
+        if (notesEl) notesEl.innerText = used.slice(0,3).join(" ");
+
+        const analysisCard = document.getElementById('juicer-analysis-card');
+        if (analysisCard) analysisCard.style.display = 'block';
+    },
+
     // Current application state
     state: {
         activeModule: 'biometrics',
@@ -1409,6 +1505,7 @@ const app = {
         const exerciseId = select.value;
         if (exerciseId === '') return;
 
+        if (!this.MovementMap) this.MovementMap = {};
         if (!this.MovementMap['squat']) {
             this.MovementMap['squat'] = { primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'], synergists: ['ham_l', 'ham_r', 'lower_back', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'squat' };
             this.MovementMap['press'] = { primary: ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'], synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'press' };
@@ -1903,6 +2000,9 @@ const app = {
         recipeBox.innerHTML = recipeHTML;
     }
 };
+
+// Expose app globally for testing/inline handlers
+window.app = app;
 
 // Start app on load
 document.addEventListener('DOMContentLoaded', () => {
