@@ -1155,8 +1155,8 @@ const app = {
         } else if (this.animState === 'deadlift') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             torsoHinge = phase * 1.2; // Hinge forward
-            hipFlexion = phase * 0.5; // slight squat
-            kneeFlexion = phase * 0.3;
+            hipFlexion = phase * 1.2; // hinge requires massive hip flexion
+            kneeFlexion = phase * 0.2; // straightish legs
             shoulderFlexion = -torsoHinge; // Arms hang straight down (counter-rotate)
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
@@ -1306,50 +1306,60 @@ const app = {
             const shin = `shin_${side}`;
             const foot = `foot_${side}`;
 
+            // The pivot for the leg is the pelvis
             const hipPivotY = this.basePositions['pelvis'].pos.y - torsoDrop;
             const hipPivotZ = this.basePositions['pelvis'].pos.z;
 
-            // Thigh (Quad/Ham)
+            // --- Thigh (Quad/Ham) ---
+            const thighLength = 3.2; // Full length of thigh block
             ['quad', 'ham'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
                     this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - specificHipFlex;
-                    const length = 1.8;
-                    this.bodyParts[part].mesh.position.y = hipPivotY - length * Math.cos(specificHipFlex);
-                    this.bodyParts[part].mesh.position.z = hipPivotZ + length * Math.sin(specificHipFlex) + strideZ;
+
+                    const localY = this.basePositions[part].pos.y - this.basePositions['pelvis'].pos.y;
+                    const localZ = this.basePositions[part].pos.z - this.basePositions['pelvis'].pos.z;
+
+                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(specificHipFlex) + localZ * Math.sin(specificHipFlex));
+                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
                 }
             });
 
-            // Knee
-            let kneeY = hipPivotY;
-            let kneeZ = hipPivotZ + strideZ;
-            if(this.bodyParts[quad]) {
-                const thighLength = 3.6;
-                kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
-                kneeZ = hipPivotZ + thighLength * Math.sin(specificHipFlex) + strideZ;
-                if(this.bodyParts[knee]) {
-                    this.bodyParts[knee].mesh.position.y = kneeY;
-                    this.bodyParts[knee].mesh.position.z = kneeZ;
-                }
+            // --- Knee ---
+            let kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
+            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
+
+            if(this.bodyParts[knee]) {
+                this.bodyParts[knee].mesh.position.y = kneeY;
+                this.bodyParts[knee].mesh.position.z = kneeZ;
+                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - specificHipFlex;
             }
 
-            // Lower Leg (Calf/Shin)
+            // --- Lower Leg (Calf/Shin) ---
             let lowerLegPitch = -specificHipFlex + specificKneeFlex;
+            const lowerLegLength = 3.0; // Distance from knee to ankle
+
             ['calf', 'shin'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
                     this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + lowerLegPitch;
-                    const length = 1.4;
-                    this.bodyParts[part].mesh.position.y = kneeY - length * Math.cos(lowerLegPitch);
-                    this.bodyParts[part].mesh.position.z = kneeZ + length * Math.sin(lowerLegPitch);
+
+                    const localY = this.basePositions[part].pos.y - this.basePositions[knee].pos.y;
+                    const localZ = this.basePositions[part].pos.z - this.basePositions[knee].pos.z;
+
+                    this.bodyParts[part].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
+                    this.bodyParts[part].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
                 }
             });
 
-            // Foot
-            if(this.bodyParts[calf] && this.bodyParts[foot]) {
-                const lowerLength = 3.0;
-                this.bodyParts[foot].mesh.position.y = kneeY - lowerLength * Math.cos(lowerLegPitch);
-                this.bodyParts[foot].mesh.position.z = kneeZ + lowerLength * Math.sin(lowerLegPitch);
+            // --- Foot ---
+            if(this.bodyParts[foot]) {
+                const localY = this.basePositions[foot].pos.y - this.basePositions[knee].pos.y;
+                const localZ = this.basePositions[foot].pos.z - this.basePositions[knee].pos.z;
+
+                this.bodyParts[foot].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
+                this.bodyParts[foot].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
+
                 // Keep foot relatively flat to floor unless lunging back leg
                 this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
             }
