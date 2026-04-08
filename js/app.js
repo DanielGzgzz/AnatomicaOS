@@ -791,6 +791,11 @@ const app = {
                 synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
                 animation: "procedural_press"
             },
+                        "fullbody": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'],
+                synergists: ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'traps_l', 'traps_r'],
+                animation: "fullbody"
+            },
             "deadlift": {
                 primary: ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'],
                 synergists: ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'],
@@ -1256,44 +1261,64 @@ const app = {
             });
 
         } else if (this.animState === 'deadlift') {
-            const phase = (Math.sin(this.time * 2.0) + 1) / 2; // 0 to 1 smooth
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
 
             // Hinge at the hips
             const hinge = phase * 1.5; // Max hinge
-            const kneeBend = phase * 0.5; // Slight knee bend
+            const kneeBend = phase * 0.8; // Slight knee bend
 
-            // Torso hinges forward
+            // Torso hinges forward, straight back
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','delt_l', 'delt_r'];
             torsoParts.forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 0.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.6;
                 }
             });
 
-            // Pelvis and glutes hinge but stay anchored relatively
+            // Pelvis and glutes hinge and push back
             ['pelvis','glute_l','glute_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.5; // push hips back
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend * 0.3;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.6; // push hips back
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.3;
                 }
             });
 
-            // Arms hang straight down from the hinged shoulders
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].forEach(p => {
+            // Arms hang straight down from the hinged shoulders, maintaining connection
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.0;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x; // Hang straight down, no rotation
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x; // Hang straight down
                 }
             });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                }
+            });
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
+                }
+            });
+            ['hand_l', 'hand_r'].forEach(p => {
+                 if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                 }
+            });
 
-            // Legs slight bend
+            // Legs bend slightly at knees
             ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + kneeBend * 0.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.2; // follow hips
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - kneeBend * 0.2;
                 }
             });
@@ -1306,9 +1331,9 @@ const app = {
 
         } else if (this.animState === 'pullup') {
             const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1
-            const pull = phase * 3.0; // Distance to pull up
+            const pull = phase * 2.5; // Distance to pull up
 
-            // Whole body moves up
+            // Whole body moves up, except arms which will be overridden
             Object.keys(this.bodyParts).forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull;
@@ -1316,39 +1341,38 @@ const app = {
             });
 
             // Arms stay anchored to an invisible bar above
-            // Biceps/Triceps rotate down as body goes up
             ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - pull * 0.4 + 1.5; // Start high, rotate down
-                    // Adjust position slightly to look like shoulder joint is moving
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull - pull * 0.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - pull * 0.3 + 1.2; // Start high, rotate down
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull + 0.5; // Connect to rising shoulder
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.0;
                 }
             });
 
             ['elbow_l', 'elbow_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull * 0.5 + 2.0;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - pull * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull * 0.5 + 2.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
                 }
             });
 
             ['forearm_l', 'forearm_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 3.0; // Forearms stay mostly fixed at bar height
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - pull * 0.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + pull * 0.2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 2.8; // Forearms stay mostly fixed at bar height
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + pull * 0.1;
                 }
             });
             ['hand_l', 'hand_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 3.5; // Hands grab bar
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 3.8; // Hands grab bar
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
                 }
             });
 
         } else if (this.animState === 'lunge') {
-            const phase = (Math.sin(this.time * 2.0) + 1) / 2; // 0 to 1 smooth
-            const drop = phase * 1.5;
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
+            const drop = phase * 1.8;
 
             // Torso drops straight down
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
@@ -1363,41 +1387,44 @@ const app = {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.0; // Stride forward
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.3; // Less extreme rotation
                 }
             });
             if(this.bodyParts['knee_l']) {
-                this.bodyParts['knee_l'].mesh.position.y = this.basePositions['knee_l'].pos.y - drop + 0.5;
-                this.bodyParts['knee_l'].mesh.position.z = this.basePositions['knee_l'].pos.z + 1.5;
+                this.bodyParts['knee_l'].mesh.position.y = this.basePositions['knee_l'].pos.y - drop + 0.8;
+                this.bodyParts['knee_l'].mesh.position.z = this.basePositions['knee_l'].pos.z + 1.2;
             }
-            ['calf_l', 'shin_l', 'foot_l'].forEach(p => {
+            ['calf_l', 'shin_l'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    // Lower leg stays relatively planted
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.1;
                 }
             });
+            if(this.bodyParts['foot_l']) {
+                 this.bodyParts['foot_l'].mesh.position.z = this.basePositions['foot_l'].pos.z + 1.2;
+            }
 
             // Right leg steps back and drops knee
             ['quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - 1.0; // Stride back
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.4; // Rotate back
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - 1.2; // Stride back
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.3; // Rotate back
                 }
             });
             if(this.bodyParts['knee_r']) {
                 this.bodyParts['knee_r'].mesh.position.y = this.basePositions['knee_r'].pos.y - drop * 1.5;
-                this.bodyParts['knee_r'].mesh.position.z = this.basePositions['knee_r'].pos.z - 1.0;
+                this.bodyParts['knee_r'].mesh.position.z = this.basePositions['knee_r'].pos.z - 1.2;
             }
             ['calf_r', 'shin_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.7;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - 1.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.5; // Calf parallel to floor
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4; // Calf parallel to floor
                 }
             });
             if(this.bodyParts['foot_r']) {
-                this.bodyParts['foot_r'].mesh.position.z = this.basePositions['foot_r'].pos.z - 2.0;
+                this.bodyParts['foot_r'].mesh.position.z = this.basePositions['foot_r'].pos.z - 2.2;
                 this.bodyParts['foot_r'].mesh.rotation.x = this.basePositions['foot_r'].rot.x - drop * 0.8; // Flex toe
             }
 
@@ -1495,54 +1522,54 @@ const app = {
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','delt_l', 'delt_r'];
             torsoParts.forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 0.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.6;
                 }
             });
 
             // Legs slight bend (static)
             ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.3;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 0.1;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - 0.1;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - 0.2;
                 }
             });
             ['knee_l', 'knee_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.4;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.6;
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 0.2;
                 }
             });
 
             // Arms pull back
-            const pull = phase * 1.5;
+            const pull = phase * 1.8;
             ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     // Start hanging down, pull up and back
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.5 + pull * 0.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.0 - pull * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.2 + pull * 0.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2 - pull * 0.6;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - pull * 0.5; // Rotate back
                 }
             });
             ['elbow_l', 'elbow_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.0 + pull * 1.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.0;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.8 + pull * 1.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
                 }
             });
             ['forearm_l', 'forearm_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.5 + pull * 1.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.0;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.0 + pull * 1.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + pull * 0.8; // Flex elbow
                 }
             });
             ['hand_l', 'hand_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 3.0 + pull * 2.2;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.0;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.5 + pull * 2.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
                 }
             });
 
