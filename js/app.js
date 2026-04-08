@@ -1249,12 +1249,22 @@ const app = {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 0.5;
                 }
             });
+
             ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 0.5;
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
                 }
             });
+
+            // Reset other parts
+            Object.keys(this.bodyParts).forEach(p => {
+                if (!['hand_l', 'hand_r', 'forearm_l', 'forearm_r', 'elbow_l', 'elbow_r', 'bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].includes(p)) {
+                    this.bodyParts[p].mesh.position.copy(this.basePositions[p].pos);
+                    this.bodyParts[p].mesh.rotation.copy(this.basePositions[p].rot);
+                }
+            });
+
 
         } else if (this.animState === 'pullup') {
             const phase = (Math.sin(this.time * 2.5) + 1) / 2;
