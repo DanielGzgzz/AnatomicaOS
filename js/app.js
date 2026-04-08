@@ -791,6 +791,46 @@ const app = {
                 synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
                 animation: "procedural_press"
             },
+                        "fullbody": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'],
+                synergists: ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'traps_l', 'traps_r'],
+                animation: "fullbody"
+            },
+            "deadlift": {
+                primary: ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'],
+                synergists: ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'],
+                animation: "deadlift"
+            },
+            "pullup": {
+                primary: ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'],
+                synergists: ['traps_l', 'traps_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'forearm_l', 'forearm_r'],
+                animation: "pullup"
+            },
+            "lunge": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'],
+                synergists: ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'],
+                animation: "lunge"
+            },
+            "plank": {
+                primary: ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
+                synergists: ['delt_l', 'delt_r', 'pec_l', 'pec_r', 'quad_l', 'quad_r', 'glute_l', 'glute_r'],
+                animation: "plank"
+            },
+            "overhead_press": {
+                primary: ['delt_l', 'delt_r', 'tricep_l', 'tricep_r'],
+                synergists: ['traps_l', 'traps_r', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'],
+                animation: "overhead_press"
+            },
+            "row": {
+                primary: ['lat_l', 'lat_r', 'traps_l', 'traps_r'],
+                synergists: ['bicep_l', 'bicep_r', 'lower_back', 'ham_l', 'ham_r', 'glute_l', 'glute_r'],
+                animation: "row"
+            },
+            "curl": {
+                primary: ['bicep_l', 'bicep_r'],
+                synergists: ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'],
+                animation: "curl"
+            },
             "idle": {
                 primary: [],
                 synergists: [],
@@ -859,36 +899,60 @@ const app = {
             this.updateProceduralMotion(delta, breath);
 
             // Update Floating UI Label
-                        if (this.animState !== 'idle' && this.state.schedule) {
-                let targetPart = null;
-                if (this.animState === 'squat' && this.bodyParts['quad_l']) {
-                    targetPart = this.bodyParts['quad_l'].mesh;
-                    this.activeLabel.innerText = "QUADRICEPS_FEMORIS [ACTIVE]";
-                } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
-                    targetPart = this.bodyParts['pec_l'].mesh;
-                    this.activeLabel.innerText = "PECTORALIS_MAJOR [ACTIVE]";
-                } else if (this.animState === 'fullbody' && this.bodyParts['delt_l']) {
-                    targetPart = this.bodyParts['delt_l'].mesh;
-                    this.activeLabel.innerText = "FULL_KINETIC_CHAIN [ACTIVE]";
-                }
+        if (this.animState !== 'idle') {
+            let targetPart = null;
+            let activeName = "ACTIVE_MOVER";
 
-                if (targetPart) {
-                    const vector = new THREE.Vector3();
-                    // Get world position of the target part
-                    targetPart.getWorldPosition(vector);
-                    // Project to 2D screen space
-                    vector.project(this.camera);
-
-                    const x = (vector.x * .5 + .5) * container.clientWidth;
-                    const y = (vector.y * -.5 + .5) * container.clientHeight;
-
-                    this.activeLabel.style.left = `${x + 20}px`;
-                    this.activeLabel.style.top = `${y - 20}px`;
-                    this.activeLabel.style.display = 'block';
-                }
-            } else {
-                this.activeLabel.style.display = 'none';
+            if (this.animState === 'squat' && this.bodyParts['quad_l']) {
+                targetPart = this.bodyParts['quad_l'].mesh;
+                activeName = "QUADRICEPS_FEMORIS [ACTIVE]";
+            } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
+                targetPart = this.bodyParts['pec_l'].mesh;
+                activeName = "PECTORALIS_MAJOR [ACTIVE]";
+            } else if (this.animState === 'fullbody' && this.bodyParts['delt_l']) {
+                targetPart = this.bodyParts['delt_l'].mesh;
+                activeName = "FULL_KINETIC_CHAIN [ACTIVE]";
+            } else if (this.animState === 'deadlift' && this.bodyParts['glute_l']) {
+                targetPart = this.bodyParts['glute_l'].mesh;
+                activeName = "POSTERIOR_CHAIN [ACTIVE]";
+            } else if (this.animState === 'pullup' && this.bodyParts['lat_l']) {
+                targetPart = this.bodyParts['lat_l'].mesh;
+                activeName = "LATISSIMUS_DORSI [ACTIVE]";
+            } else if (this.animState === 'lunge' && this.bodyParts['quad_l']) {
+                targetPart = this.bodyParts['quad_l'].mesh;
+                activeName = "QUADRICEPS_FEMORIS [ACTIVE]";
+            } else if (this.animState === 'plank' && this.bodyParts['abs_1l']) {
+                targetPart = this.bodyParts['abs_1l'].mesh;
+                activeName = "CORE_STABILIZATION [ACTIVE]";
+            } else if (this.animState === 'overhead_press' && this.bodyParts['delt_l']) {
+                targetPart = this.bodyParts['delt_l'].mesh;
+                activeName = "DELTOIDS [ACTIVE]";
+            } else if (this.animState === 'row' && this.bodyParts['lat_l']) {
+                targetPart = this.bodyParts['lat_l'].mesh;
+                activeName = "LATISSIMUS_DORSI [ACTIVE]";
+            } else if (this.animState === 'curl' && this.bodyParts['bicep_l']) {
+                targetPart = this.bodyParts['bicep_l'].mesh;
+                activeName = "BICEPS_BRACHII [ACTIVE]";
             }
+
+            if (targetPart) {
+                this.activeLabel.innerText = activeName;
+                const vector = new THREE.Vector3();
+                // Get world position of the target part
+                targetPart.getWorldPosition(vector);
+                // Project to 2D screen space
+                vector.project(this.camera);
+
+                const x = (vector.x * .5 + .5) * container.clientWidth;
+                const y = (vector.y * -.5 + .5) * container.clientHeight;
+
+                this.activeLabel.style.left = `${x + 20}px`;
+                this.activeLabel.style.top = `${y - 20}px`;
+                this.activeLabel.style.display = 'block';
+            }
+        } else {
+            this.activeLabel.style.display = 'none';
+        }
 
             // Update Dynamic Grid and Contact Shadow
             if (this.gridHelper) {
@@ -941,6 +1005,7 @@ const app = {
                             part.trailLine.geometry.attributes.position.needsUpdate = true;
                             // Match color to glow color
                             part.trailLine.material.color.copy(part.mesh.material.color);
+                            part.trailLine.material.opacity = 0.8;
                             part.trailLine.visible = true;
                         }
                     }
@@ -1025,7 +1090,7 @@ const app = {
                     // Fluorescent Red with emissive pulse
                     this.bodyParts[p].mesh.material.color.setHex(0xff3333);
                     this.bodyParts[p].mesh.material.emissive.setHex(0xff0000);
-                    this.bodyParts[p].mesh.material.emissiveIntensity = 0.5 + pulse * 0.5;
+                    this.bodyParts[p].mesh.material.emissiveIntensity = 0.5 + pulse * 0.5; // Throbbing effect
                 }
             });
 
@@ -1196,44 +1261,64 @@ const app = {
             });
 
         } else if (this.animState === 'deadlift') {
-            const phase = (Math.sin(this.time * 2.0) + 1) / 2; // 0 to 1 smooth
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
 
             // Hinge at the hips
             const hinge = phase * 1.5; // Max hinge
-            const kneeBend = phase * 0.5; // Slight knee bend
+            const kneeBend = phase * 0.8; // Slight knee bend
 
-            // Torso hinges forward
+            // Torso hinges forward, straight back
             const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','delt_l', 'delt_r'];
             torsoParts.forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 0.8;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.5;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.6;
                 }
             });
 
-            // Pelvis and glutes hinge but stay anchored relatively
+            // Pelvis and glutes hinge and push back
             ['pelvis','glute_l','glute_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.5; // push hips back
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.2;
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend * 0.3;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.6; // push hips back
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.3;
                 }
             });
 
-            // Arms hang straight down from the hinged shoulders
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].forEach(p => {
+            // Arms hang straight down from the hinged shoulders, maintaining connection
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
                 if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.0;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x; // Hang straight down, no rotation
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x; // Hang straight down
                 }
             });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                }
+            });
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x;
+                }
+            });
+            ['hand_l', 'hand_r'].forEach(p => {
+                 if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                 }
+            });
 
-            // Legs slight bend
+            // Legs bend slightly at knees
             ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
                 if(this.bodyParts[p]) {
                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - kneeBend * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + kneeBend * 0.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - hinge * 0.2; // follow hips
                     this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - kneeBend * 0.2;
                 }
             });
@@ -1244,6 +1329,278 @@ const app = {
                 }
             });
 
+        } else if (this.animState === 'pullup') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1
+            const pull = phase * 2.5; // Distance to pull up
+
+            // Whole body moves up, except arms which will be overridden
+            Object.keys(this.bodyParts).forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull;
+                }
+            });
+
+            // Arms stay anchored to an invisible bar above
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - pull * 0.3 + 1.2; // Start high, rotate down
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull + 0.5; // Connect to rising shoulder
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.0;
+                }
+            });
+
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + pull * 0.5 + 2.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
+                }
+            });
+
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 2.8; // Forearms stay mostly fixed at bar height
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + pull * 0.1;
+                }
+            });
+            ['hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + 3.8; // Hands grab bar
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.5;
+                }
+            });
+
+        } else if (this.animState === 'lunge') {
+            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
+            const drop = phase * 1.8;
+
+            // Torso drops straight down
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
+            torsoParts.forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
+                }
+            });
+
+            // Left leg lunges forward (stationary foot)
+            ['quad_l', 'ham_l'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.0; // Stride forward
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.3; // Less extreme rotation
+                }
+            });
+            if(this.bodyParts['knee_l']) {
+                this.bodyParts['knee_l'].mesh.position.y = this.basePositions['knee_l'].pos.y - drop + 0.8;
+                this.bodyParts['knee_l'].mesh.position.z = this.basePositions['knee_l'].pos.z + 1.2;
+            }
+            ['calf_l', 'shin_l'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 1.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.1;
+                }
+            });
+            if(this.bodyParts['foot_l']) {
+                 this.bodyParts['foot_l'].mesh.position.z = this.basePositions['foot_l'].pos.z + 1.2;
+            }
+
+            // Right leg steps back and drops knee
+            ['quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - 1.2; // Stride back
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.3; // Rotate back
+                }
+            });
+            if(this.bodyParts['knee_r']) {
+                this.bodyParts['knee_r'].mesh.position.y = this.basePositions['knee_r'].pos.y - drop * 1.5;
+                this.bodyParts['knee_r'].mesh.position.z = this.basePositions['knee_r'].pos.z - 1.2;
+            }
+            ['calf_r', 'shin_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.7;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z - 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.4; // Calf parallel to floor
+                }
+            });
+            if(this.bodyParts['foot_r']) {
+                this.bodyParts['foot_r'].mesh.position.z = this.basePositions['foot_r'].pos.z - 2.2;
+                this.bodyParts['foot_r'].mesh.rotation.x = this.basePositions['foot_r'].rot.x - drop * 0.8; // Flex toe
+            }
+
+        } else if (this.animState === 'plank') {
+            const phase = Math.sin(this.time * 4) * 0.05; // Slight tremor
+
+            // Rotate entire body forward 90 degrees
+            this.bodyGroup.rotation.x = -Math.PI / 2 + 0.1; // Slight angle for hands/feet
+            this.bodyGroup.position.y = -3.0; // Lower to ground
+
+            // Hands support body
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + Math.PI / 2; // Point down
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 2.0; // Move forward to align with shoulders
+                }
+            });
+
+            // Adjust elbows
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 1.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 2.0;
+                }
+            });
+
+            // Feet support on toes
+            ['foot_l', 'foot_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - Math.PI / 4; // Flex toes
+                }
+            });
+
+            // Tremor effect on core
+            ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'].forEach(p => {
+                 if(this.bodyParts[p]) {
+                     this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + phase;
+                 }
+            });
+
+        } else if (this.animState === 'overhead_press') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
+            const push = phase * 3.5;
+
+            // Torso slight brace
+            ['lower_back', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + phase * 0.2; // Slight lean back
+                }
+            });
+
+            // Rotate Deltoids up
+            ['delt_l', 'delt_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.3; // Raise shoulders
+                }
+            });
+
+            // Move Upper Arms (biceps/triceps) up
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.6; // Rotate up
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 0.8;
+                }
+            });
+
+            // Move elbows
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.5;
+                }
+            });
+
+            // Move forearms straight up
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1.8;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.5; // Straighten arm
+                }
+            });
+
+            // Move hands
+            ['hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 2.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + push * 0.5;
+                }
+            });
+
+        } else if (this.animState === 'row') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
+
+            // Hinge at hips (static)
+            const hinge = 1.0;
+            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','delt_l', 'delt_r'];
+            torsoParts.forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.0;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge * 0.6;
+                }
+            });
+
+            // Legs slight bend (static)
+            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.3;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 0.1;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - 0.2;
+                }
+            });
+            ['knee_l', 'knee_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - 0.6;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + 0.2;
+                }
+            });
+
+            // Arms pull back
+            const pull = phase * 1.8;
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    // Start hanging down, pull up and back
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.2 + pull * 0.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.2 - pull * 0.6;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - pull * 0.5; // Rotate back
+                }
+            });
+            ['elbow_l', 'elbow_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 1.8 + pull * 1.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
+                }
+            });
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.0 + pull * 1.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + pull * 0.8; // Flex elbow
+                }
+            });
+            ['hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - hinge * 2.5 + pull * 2.2;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge * 1.5 - pull * 1.2;
+                }
+            });
+
+        } else if (this.animState === 'curl') {
+            const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
+            const curl = phase * 2.0;
+
+            // Upper arms stay mostly still, maybe slight forward shift
+            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + curl * 0.1;
+                }
+            });
+
+            // Forearms rotate up
+            ['forearm_l', 'forearm_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + curl * 0.8;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + curl * 0.5;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - curl * 0.8; // Bend up
+                }
+            });
+
+            // Hands follow forearms
+            ['hand_l', 'hand_r'].forEach(p => {
+                if(this.bodyParts[p]) {
+                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + curl * 1.5;
+                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + curl * 0.8;
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - curl * 0.8;
+                }
+            });
         } else {
             // Reset to base positions
             Object.keys(this.bodyParts).forEach(p => {
@@ -1314,6 +1671,53 @@ const app = {
             const colors = { high: 0xef4444, mod: 0x3b82f6 };
             ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
             ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+        } else if (exType === 'pullup') {
+            desc = "ISOLATING: Upper Body Pull | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Pull-up Bar (Targets Lats/Biceps)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['traps_l', 'traps_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'forearm_l', 'forearm_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'lunge') {
+            desc = "ISOLATING: Unilateral Lower Body | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Dumbbell Lunges (Targets Quads/Glutes/Stability)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'plank') {
+            desc = "ISOLATING: Core Stabilization | INTENSITY: Moderate";
+            equipment = "<li><strong>Primary:</strong> Bodyweight (Targets Rectus Abdominis/Core)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['delt_l', 'delt_r', 'pec_l', 'pec_r', 'quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'overhead_press') {
+            desc = "ISOLATING: Shoulder Push | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Overhead Press (Targets Deltoids/Triceps)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['delt_l', 'delt_r', 'tricep_l', 'tricep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['traps_l', 'traps_r', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'row') {
+            desc = "ISOLATING: Horizontal Pull | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Bent Over Row (Targets Lats/Rhomboids)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['lat_l', 'lat_r', 'traps_l', 'traps_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['bicep_l', 'bicep_r', 'lower_back', 'ham_l', 'ham_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'curl') {
+            desc = "ISOLATING: Arm Isolation | INTENSITY: Low/Moderate";
+            equipment = "<li><strong>Primary:</strong> Dumbbell Bicep Curl (Targets Biceps Brachii)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['bicep_l', 'bicep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
         }
 
         document.getElementById('vis-desc').innerText = desc;
