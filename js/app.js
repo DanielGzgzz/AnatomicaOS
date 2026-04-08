@@ -1122,12 +1122,15 @@ const app = {
         if (this.animState === 'press') {
              // Bench press: character is lying on back
              this.bodyGroup.rotation.x = -Math.PI / 2;
-             this.bodyGroup.position.y = -4.0;
-             this.bodyGroup.position.z = 2.0;
+             // Translate down so back rests on "bench"
+             this.bodyGroup.position.y = -3.0;
+             this.bodyGroup.position.z = 3.0;
         } else if (this.animState === 'plank') {
              // Plank: character is face down
              this.bodyGroup.rotation.x = Math.PI / 2;
-             this.bodyGroup.position.y = -3.5;
+             // Tremor effect applied to whole body height
+             const tremor = Math.sin(this.time * 8) * 0.05;
+             this.bodyGroup.position.y = -2.5 + tremor;
         } else {
              this.bodyGroup.rotation.x = 0;
              this.bodyGroup.position.y = 0;
@@ -1365,24 +1368,18 @@ const app = {
             }
         };
 
+        // Explicitly stride legs for lunge, else static Z
+        let strideZL = 0;
+        let strideZR = 0;
         if (this.animState === 'lunge') {
-            phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const drop = phase * 1.8;
-            // Left leg forward
-            processLeg('l', drop * 0.4, drop * 0.4, 1.2);
-            // Right leg back
-            processLeg('r', -drop * 0.3, drop * 1.0, -1.2);
-        } else {
-            // Symmetrical leg processing
-            processLeg('l', hipFlexion, kneeFlexion, 0);
-            processLeg('r', hipFlexion, kneeFlexion, 0);
+            strideZL = 1.2;
+            strideZR = -1.2;
         }
 
-        // Tremor for plank
-        if (this.animState === 'plank') {
-             const tremor = Math.sin(this.time * 4) * 0.05;
-             this.bodyGroup.position.y += tremor;
-        }
+        processLeg('l', hipFlexionL, kneeFlexionL, strideZL);
+        processLeg('r', hipFlexionR, kneeFlexionR, strideZR);
+
+
 
     }
 
