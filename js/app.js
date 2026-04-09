@@ -644,7 +644,8 @@ const app = {
         createMuscle(polyGeo, 'foot_r', 1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
 
         // --- 6. Equipment Geometries ---
-        const ironMat = new THREE.MeshPhongMaterial({ color: 0x475569, emissive: 0x000000, shininess: 50 });
+        // Distinct dark iron color to stand out as requested
+        const ironMat = new THREE.MeshPhongMaterial({ color: 0x111111, emissive: 0x050505, shininess: 80, specular: 0x888888 });
 
         // Barbell (used in squat, deadlift, press, thruster, row, overhead_press)
         const barGeo = new THREE.CylinderGeometry(0.1, 0.1, 14, 8);
@@ -821,6 +822,18 @@ const app = {
         this.time = 0;
 
         // Setup initial default positions to allow interpolation
+        // State object to hold smoothed values for interpolated transitions
+        this.jointStates = {
+            torsoDrop: 0,
+            torsoHinge: 0,
+            shoulderFlexion: 0,
+            elbowFlexion: 0,
+            hipFlexionL: 0, kneeFlexionL: 0,
+            hipFlexionR: 0, kneeFlexionR: 0,
+            groupRotX: 0, groupPosY: 0, groupPosZ: 0,
+            wristBend: 0, forearmTwist: 0 // New joint values for hands
+        };
+
         this.basePositions = {};
         Object.keys(this.bodyParts).forEach(key => {
             this.basePositions[key] = {
@@ -1106,26 +1119,24 @@ const app = {
         });
 
         // --- 2. Neutral Reset ---
+        // EVERYTHING must be strictly reset to its base position before applying the IK math,
+        // otherwise rotations and translations from a previous exercise (e.g. deadlift hinge) will compound into warped meshes like the abs flying off.
         Object.keys(this.bodyParts).forEach(key => {
             const part = this.bodyParts[key];
-            if (!['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].includes(key)) {
-                part.mesh.scale.copy(this.basePositions[key].scale);
-            }
+            part.mesh.scale.copy(this.basePositions[key].scale);
+            part.mesh.position.copy(this.basePositions[key].pos);
+            part.mesh.rotation.copy(this.basePositions[key].rot);
+
             part.mesh.material.color.setHex(0xd2b48c); // Fleshy reset
             part.mesh.material.emissive.setHex(0x000000);
-
-            // Reset transforms before applying physics
-            if(!['pec_l','pec_r','abs_1l','abs_1r'].includes(key)) {
-                part.mesh.position.copy(this.basePositions[key].pos);
-            }
-            part.mesh.rotation.copy(this.basePositions[key].rot);
         });
 
-        // Apply breathing translation to torso base
-        this.bodyParts['pec_l'].mesh.position.z = this.basePositions['pec_l'].pos.z + breath;
-        this.bodyParts['pec_r'].mesh.position.z = this.basePositions['pec_r'].pos.z + breath;
-        this.bodyParts['abs_1l'].mesh.position.z = this.basePositions['abs_1l'].pos.z + breath * 0.5;
-        this.bodyParts['abs_1r'].mesh.position.z = this.basePositions['abs_1r'].pos.z + breath * 0.5;
+        // Only apply breathing translations *after* the strict reset
+        // To preserve breathing safely, we just modify the base Z mathematically without skipping the reset.
+        this.bodyParts['pec_l'].mesh.position.z += breath;
+        this.bodyParts['pec_r'].mesh.position.z += breath;
+        this.bodyParts['abs_1l'].mesh.position.z += breath * 0.5;
+        this.bodyParts['abs_1r'].mesh.position.z += breath * 0.5;
 
         // --- 3. Dynamic Illumination & Pulsing ---
         let map = this.MovementMap[this.animState] || this.MovementMap["idle"];
@@ -1160,10 +1171,10 @@ const app = {
         let phase = (Math.sin(this.time * 2.5) + 1) / 2;
 
         // Core variables driven by animation state
-        let torsoDrop = 0; // Y axis translation of upper body
-        let torsoHinge = 0; // X axis rotation of upper body (pitch)
-        let shoulderFlexion = 0; // Arm rotation X (lifting arms forward/up)
-        let elbowFlexion = 0; // Forearm rotation relative to bicep
+        let t.torsoDrop = 0; // Y axis translation of upper body
+        let t.torsoHinge = 0; // X axis rotation of upper body (pitch)
+        let t.shoulderFlexion = 0; // Arm rotation X (lifting arms forward/up)
+        let t.elbowFlexion = 0; // Forearm rotation relative to bicep
         let hipFlexion = 0; // Thigh rotation X (lifting knee)
         let kneeFlexion = 0; // Calf rotation relative to thigh
 
@@ -1171,78 +1182,110 @@ const app = {
 
         // Exercise specific overrides
         if (this.animState === 'press') {
-             // Bench press: character is lying on back
-             this.bodyGroup.rotation.x = -Math.PI / 2;
-             // Translate down so back rests on "bench"
-             this.bodyGroup.position.y = -3.0;
-             this.bodyGroup.position.z = 3.0;
+             t.groupRotX = -Math.PI / 2;
+             t.groupPosY = -3.0;
+             t.groupPosZ = 3.0;
         } else if (this.animState === 'plank') {
-             // Plank: character is face down
-             this.bodyGroup.rotation.x = Math.PI / 2;
-             // Tremor effect applied to whole body height
+             t.groupRotX = Math.PI / 2;
              const tremor = Math.sin(this.time * 8) * 0.05;
-             this.bodyGroup.position.y = -2.5 + tremor;
+             t.groupPosY = -2.5 + tremor;
         } else {
-             this.bodyGroup.rotation.x = 0;
-             this.bodyGroup.position.y = 0;
-             this.bodyGroup.position.z = 0;
+             t.groupRotX = 0;
+             t.groupPosY = 0;
+             t.groupPosZ = 0;
         }
 
         if (this.animState === 'squat') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            torsoDrop = phase * 2.0;
+            t.torsoDrop = phase * 2.0;
             hipFlexion = phase * 0.8;
             kneeFlexion = phase * 1.0;
         } else if (this.animState === 'press') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            shoulderFlexion = phase * 1.2; // Push forward
-            elbowFlexion = -phase * 1.5; // Extend arm
+            t.shoulderFlexion = phase * 1.2; // Push forward
+            t.elbowFlexion = -phase * 1.5; // Extend arm
         } else if (this.animState === 'fullbody') {
             phase = (Math.sin(this.time * 2.0) + 1) / 2;
-            torsoDrop = phase * 2.0;
+            t.torsoDrop = phase * 2.0;
             hipFlexion = phase * 0.8;
             kneeFlexion = phase * 1.0;
             // Thruster: arms up when drop is 0
-            shoulderFlexion = (1 - phase) * -2.5;
-            elbowFlexion = 0; // Kept relatively straight at top
+            t.shoulderFlexion = (1 - phase) * -2.5;
+            t.elbowFlexion = 0; // Kept relatively straight at top
         } else if (this.animState === 'deadlift') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            torsoHinge = phase * 1.2; // Hinge forward
+            t.torsoHinge = phase * 1.2; // Hinge forward
             hipFlexion = phase * 1.2; // hinge requires massive hip flexion
             kneeFlexion = phase * 0.2; // straightish legs
-            shoulderFlexion = -torsoHinge; // Arms hang straight down (counter-rotate)
+            t.shoulderFlexion = -torsoHinge; // Arms hang straight down (counter-rotate)
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            torsoDrop = phase * -2.5; // Pull UP (negative drop)
-            shoulderFlexion = phase * -1.5; // Pull elbows down relative to torso
-            elbowFlexion = phase * 2.0; // Bend elbows
+            t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
+            t.shoulderFlexion = phase * -1.5; // Pull elbows down relative to torso
+            t.elbowFlexion = phase * 2.0; // Bend elbows
         } else if (this.animState === 'lunge') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            torsoDrop = phase * 1.8;
+            t.torsoDrop = phase * 1.8;
             // Leg logic handled specially below due to asymmetry
         } else if (this.animState === 'plank') {
             orientation = 'horizontal';
-            torsoHinge = Math.PI / 2; // Flat
-            torsoDrop = 5.0; // Down to ground
-            shoulderFlexion = Math.PI / 2; // Arms straight down
+            t.torsoHinge = Math.PI / 2; // Flat
+            t.torsoDrop = 5.0; // Down to ground
+            t.shoulderFlexion = Math.PI / 2; // Arms straight down
         } else if (this.animState === 'overhead_press') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            shoulderFlexion = phase * -2.8; // Press straight up
-            elbowFlexion = phase * -1.0; // Straighten elbows
+            t.shoulderFlexion = phase * -2.8; // Press straight up
+            t.elbowFlexion = phase * -1.0; // Straighten elbows
         } else if (this.animState === 'row') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            torsoHinge = 1.0; // Static hinge
+            t.torsoHinge = 1.0; // Static hinge
             hipFlexion = 0.2;
             kneeFlexion = 0.2;
-            shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
-            elbowFlexion = phase * 1.8; // Bend elbows
+            t.shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
+            t.elbowFlexion = phase * 1.8; // Bend elbows
         } else if (this.animState === 'curl') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            shoulderFlexion = phase * -0.2; // slight shift
-            elbowFlexion = phase * 2.0; // Curl forearm up
+            t.shoulderFlexion = phase * -0.2; // slight shift
+            t.elbowFlexion = phase * 2.0; // Curl forearm up
         }
+
+        // --- 4.2 LERP Engine (Smooth transitions across exercise changes) ---
+        // Lerp factor (higher is faster snap, lower is sluggish). Use delta time for framerate independence.
+        // We use a high rate so normal motion tracks fast, but changing exercises takes a half second visually.
+        const lerpSpeed = 5.0 * delta;
+
+        this.jointStates.torsoDrop = lerp(this.jointStates.torsoDrop, t.torsoDrop, lerpSpeed);
+        this.jointStates.torsoHinge = lerp(this.jointStates.torsoHinge, t.torsoHinge, lerpSpeed);
+        this.jointStates.shoulderFlexion = lerp(this.jointStates.shoulderFlexion, t.shoulderFlexion, lerpSpeed);
+        this.jointStates.elbowFlexion = lerp(this.jointStates.elbowFlexion, t.elbowFlexion, lerpSpeed);
+        this.jointStates.hipFlexionL = lerp(this.jointStates.hipFlexionL, t.hipFlexionL, lerpSpeed);
+        this.jointStates.kneeFlexionL = lerp(this.jointStates.kneeFlexionL, t.kneeFlexionL, lerpSpeed);
+        this.jointStates.hipFlexionR = lerp(this.jointStates.hipFlexionR, t.hipFlexionR, lerpSpeed);
+        this.jointStates.kneeFlexionR = lerp(this.jointStates.kneeFlexionR, t.kneeFlexionR, lerpSpeed);
+        this.jointStates.groupRotX = lerp(this.jointStates.groupRotX, t.groupRotX, lerpSpeed);
+        this.jointStates.groupPosY = lerp(this.jointStates.groupPosY, t.groupPosY, lerpSpeed);
+        this.jointStates.groupPosZ = lerp(this.jointStates.groupPosZ, t.groupPosZ, lerpSpeed);
+        this.jointStates.wristBend = lerp(this.jointStates.wristBend, t.wristBend, lerpSpeed);
+        this.jointStates.forearmTwist = lerp(this.jointStates.forearmTwist, t.forearmTwist, lerpSpeed);
+
+        // Apply interpolated horizontal states
+        this.bodyGroup.rotation.x = this.jointStates.groupRotX;
+        this.bodyGroup.position.y = this.jointStates.groupPosY;
+        this.bodyGroup.position.z = this.jointStates.groupPosZ;
+
+        // Alias for the FK math block to use cleanly
+        const torsoDrop = this.jointStates.torsoDrop;
+        const torsoHinge = this.jointStates.torsoHinge;
+        const shoulderFlexion = this.jointStates.shoulderFlexion;
+        const elbowFlexion = this.jointStates.elbowFlexion;
+        const hipFlexionL = this.jointStates.hipFlexionL;
+        const kneeFlexionL = this.jointStates.kneeFlexionL;
+        const hipFlexionR = this.jointStates.hipFlexionR;
+        const kneeFlexionR = this.jointStates.kneeFlexionR;
+        const wristBend = this.jointStates.wristBend;
+        const forearmTwist = this.jointStates.forearmTwist;
 
         // --- 5. Forward Kinematics Application ---
 
