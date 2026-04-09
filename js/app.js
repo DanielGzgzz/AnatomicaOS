@@ -643,6 +643,57 @@ const app = {
         createMuscle(polyGeo, 'foot_l', -1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
         createMuscle(polyGeo, 'foot_r', 1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
 
+        // --- 6. Equipment Geometries ---
+        const ironMat = new THREE.MeshPhongMaterial({ color: 0x475569, emissive: 0x000000, shininess: 50 });
+
+        // Barbell (used in squat, deadlift, press, thruster, row, overhead_press)
+        const barGeo = new THREE.CylinderGeometry(0.1, 0.1, 14, 8);
+        const plateGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 16);
+        this.barbell = new THREE.Group();
+        const barMesh = new THREE.Mesh(barGeo, ironMat);
+        barMesh.rotation.z = Math.PI / 2; // Horizontal
+        this.barbell.add(barMesh);
+        const plateL = new THREE.Mesh(plateGeo, ironMat);
+        plateL.rotation.z = Math.PI / 2;
+        plateL.position.x = -6.0;
+        this.barbell.add(plateL);
+        const plateR = new THREE.Mesh(plateGeo, ironMat);
+        plateR.rotation.z = Math.PI / 2;
+        plateR.position.x = 6.0;
+        this.barbell.add(plateR);
+        this.scene.add(this.barbell); // Add to scene to avoid body rotation issues
+
+        // Dumbbells (used in lunge, curl)
+        const dbBarGeo = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+        const dbPlateGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.4, 16);
+        const createDumbbell = () => {
+            const db = new THREE.Group();
+            const bar = new THREE.Mesh(dbBarGeo, ironMat);
+            bar.rotation.x = Math.PI / 2; // Point forward/back based on grip
+            db.add(bar);
+            const p1 = new THREE.Mesh(dbPlateGeo, ironMat);
+            p1.rotation.x = Math.PI / 2;
+            p1.position.z = -0.8;
+            db.add(p1);
+            const p2 = new THREE.Mesh(dbPlateGeo, ironMat);
+            p2.rotation.x = Math.PI / 2;
+            p2.position.z = 0.8;
+            db.add(p2);
+            return db;
+        };
+        this.dbL = createDumbbell();
+        this.dbR = createDumbbell();
+        this.scene.add(this.dbL);
+        this.scene.add(this.dbR);
+
+        // Pull-up Bar (Static)
+        const pullupBarGeo = new THREE.CylinderGeometry(0.15, 0.15, 16, 8);
+        this.pullupBar = new THREE.Mesh(pullupBarGeo, ironMat);
+        this.pullupBar.rotation.z = Math.PI / 2;
+        this.pullupBar.position.y = 8.0;
+        this.pullupBar.position.z = 1.0;
+        this.scene.add(this.pullupBar);
+
         // Raycasting for Tooltips
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -1310,11 +1361,13 @@ const app = {
             const foot = `foot_${side}`;
 
             // The pivot for the leg is the pelvis
+            // Pelvis: y=0.5. Knee: y=-3.8 -> Thigh length = 4.3
+            // Knee: y=-3.8. Foot: y=-7.2 -> Lower leg length = 3.4
             const hipPivotY = this.basePositions['pelvis'].pos.y - torsoDrop;
             const hipPivotZ = this.basePositions['pelvis'].pos.z;
 
             // --- Thigh (Quad/Ham) ---
-            const thighLength = 3.2; // Full length of thigh block
+            const thighLength = 4.3;
             ['quad', 'ham'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
@@ -1340,7 +1393,7 @@ const app = {
 
             // --- Lower Leg (Calf/Shin) ---
             let lowerLegPitch = -specificHipFlex + specificKneeFlex;
-            const lowerLegLength = 3.0; // Distance from knee to ankle
+            const lowerLegLength = 3.4; // Distance from knee to ankle
 
             ['calf', 'shin'].forEach(m => {
                 const part = `${m}_${side}`;
@@ -1383,7 +1436,27 @@ const app = {
 
     }
 
-    playDictionaryExercise() {    playDictionaryExercise() {
+        // Ensure barbell is hidden when idle or plank
+        if (['idle', 'plank'].includes(this.animState)) {
+             if (this.barbell) this.barbell.visible = false;
+             if (this.pullupBar) this.pullupBar.visible = false;
+             if (this.dbL) this.dbL.visible = false;
+             if (this.dbR) this.dbR.visible = false;
+        }
+
+    }
+
+    playDictionaryExercise() {        // Ensure barbell is hidden when idle or plank
+        if (['idle', 'plank'].includes(this.animState)) {
+             if (this.barbell) this.barbell.visible = false;
+             if (this.pullupBar) this.pullupBar.visible = false;
+             if (this.dbL) this.dbL.visible = false;
+             if (this.dbR) this.dbR.visible = false;
+        }
+
+    }
+
+    playDictionaryExercise() {
         if (!this.state.webglInitialized) this.initWebGL();
 
         const dictSelect = document.getElementById('vis-dict-select');
