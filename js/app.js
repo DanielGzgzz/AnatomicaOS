@@ -2,7 +2,7 @@
  * Anatomica OS Core Application Logic
  */
 
-const app = {
+window.app = {
     // Current application state
     state: {
         activeModule: 'biometrics',
@@ -1171,12 +1171,21 @@ const app = {
         let phase = (Math.sin(this.time * 2.5) + 1) / 2;
 
         // Core variables driven by animation state
-        let t.torsoDrop = 0; // Y axis translation of upper body
-        let t.torsoHinge = 0; // X axis rotation of upper body (pitch)
-        let t.shoulderFlexion = 0; // Arm rotation X (lifting arms forward/up)
-        let t.elbowFlexion = 0; // Forearm rotation relative to bicep
-        let hipFlexion = 0; // Thigh rotation X (lifting knee)
-        let kneeFlexion = 0; // Calf rotation relative to thigh
+        let t = {
+            torsoDrop: 0,
+            torsoHinge: 0,
+            shoulderFlexion: 0,
+            elbowFlexion: 0,
+            hipFlexionL: 0,
+            kneeFlexionL: 0,
+            hipFlexionR: 0,
+            kneeFlexionR: 0,
+            groupRotX: 0,
+            groupPosY: 0,
+            groupPosZ: 0,
+            wristBend: 0,
+            forearmTwist: 0
+        };
 
         let orientation = 'vertical'; // vertical (up/down) or horizontal (push/pull) or static
 
@@ -1198,8 +1207,9 @@ const app = {
         if (this.animState === 'squat') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * 2.0;
-            hipFlexion = phase * 0.8;
-            kneeFlexion = phase * 1.0;
+            t.hipFlexionL = t.hipFlexionR = phase * 0.8;
+            t.kneeFlexionL = t.kneeFlexionR = phase * 1.0;
+
         } else if (this.animState === 'press') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
@@ -1208,17 +1218,18 @@ const app = {
         } else if (this.animState === 'fullbody') {
             phase = (Math.sin(this.time * 2.0) + 1) / 2;
             t.torsoDrop = phase * 2.0;
-            hipFlexion = phase * 0.8;
-            kneeFlexion = phase * 1.0;
+            t.hipFlexionL = t.hipFlexionR = phase * 0.8;
+            t.kneeFlexionL = t.kneeFlexionR = phase * 1.0;
+
             // Thruster: arms up when drop is 0
             t.shoulderFlexion = (1 - phase) * -2.5;
             t.elbowFlexion = 0; // Kept relatively straight at top
         } else if (this.animState === 'deadlift') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoHinge = phase * 1.2; // Hinge forward
-            hipFlexion = phase * 1.2; // hinge requires massive hip flexion
-            kneeFlexion = phase * 0.2; // straightish legs
-            t.shoulderFlexion = -torsoHinge; // Arms hang straight down (counter-rotate)
+            t.hipFlexionL = t.hipFlexionR = phase * 1.2; // hinge requires massive hip flexion
+            t.kneeFlexionL = t.kneeFlexionR = phase * 0.2; // straightish legs
+            t.shoulderFlexion = -t.torsoHinge; // Arms hang straight down (counter-rotate)
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
@@ -1227,7 +1238,11 @@ const app = {
         } else if (this.animState === 'lunge') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * 1.8;
-            // Leg logic handled specially below due to asymmetry
+            // Lunge involves asymmetric legs - one bends, the other trails
+            t.hipFlexionL = phase * 1.2;
+            t.kneeFlexionL = phase * 1.8;
+            t.hipFlexionR = phase * -0.2; // Extend back
+            t.kneeFlexionR = phase * 1.2;
         } else if (this.animState === 'plank') {
             orientation = 'horizontal';
             t.torsoHinge = Math.PI / 2; // Flat
@@ -1241,8 +1256,8 @@ const app = {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.torsoHinge = 1.0; // Static hinge
-            hipFlexion = 0.2;
-            kneeFlexion = 0.2;
+            t.hipFlexionL = t.hipFlexionR = 0.2;
+            t.kneeFlexionL = t.kneeFlexionR = 0.2;
             t.shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
             t.elbowFlexion = phase * 1.8; // Bend elbows
         } else if (this.animState === 'curl') {
@@ -1475,29 +1490,59 @@ const app = {
         processLeg('l', hipFlexionL, kneeFlexionL, strideZL);
         processLeg('r', hipFlexionR, kneeFlexionR, strideZR);
 
-
-
-    }
-
         // Ensure barbell is hidden when idle or plank
         if (['idle', 'plank'].includes(this.animState)) {
              if (this.barbell) this.barbell.visible = false;
              if (this.pullupBar) this.pullupBar.visible = false;
              if (this.dbL) this.dbL.visible = false;
              if (this.dbR) this.dbR.visible = false;
+        } else {
+             // Position dynamic equipment attached to hands
+             if (['squat', 'deadlift', 'bench', 'press', 'row', 'overhead_press', 'fullbody'].includes(this.animState)) {
+                  if (this.barbell) {
+                      this.barbell.visible = true;
+
+                      // Bind strictly to hand positions in FK space.
+                      // Since barbell is centered, we just use the midpoint of left/right hands.
+                      if (this.bodyParts['hand_l'] && this.bodyParts['hand_r']) {
+                          const hl = this.bodyParts['hand_l'].mesh.position;
+                          const hr = this.bodyParts['hand_r'].mesh.position;
+                          this.barbell.position.set( (hl.x + hr.x) / 2, (hl.y + hr.y) / 2, (hl.z + hr.z) / 2 );
+
+                          // If squatting, barbell actually sits on neck, not hands
+                          if (this.animState === 'squat' && this.bodyParts['neck']) {
+                              this.barbell.position.copy(this.bodyParts['neck'].mesh.position);
+                              this.barbell.position.y += 0.8;
+                              this.barbell.position.z -= 0.5;
+                          }
+                      }
+                  }
+                  if (this.pullupBar) this.pullupBar.visible = false;
+                  if (this.dbL) this.dbL.visible = false;
+                  if (this.dbR) this.dbR.visible = false;
+             } else if (['curl', 'lunge'].includes(this.animState)) {
+                  if (this.dbL) {
+                      this.dbL.visible = true;
+                      this.dbL.position.copy(this.bodyParts['hand_l'].mesh.position);
+                  }
+                  if (this.dbR) {
+                      this.dbR.visible = true;
+                      this.dbR.position.copy(this.bodyParts['hand_r'].mesh.position);
+                  }
+                  if (this.barbell) this.barbell.visible = false;
+                  if (this.pullupBar) this.pullupBar.visible = false;
+             } else if (this.animState === 'pullup') {
+                  if (this.pullupBar) {
+                      this.pullupBar.visible = true;
+                      // Fixed bar in world space
+                      this.pullupBar.position.set(0, 11.5, 0);
+                  }
+                  if (this.barbell) this.barbell.visible = false;
+                  if (this.dbL) this.dbL.visible = false;
+                  if (this.dbR) this.dbR.visible = false;
+             }
         }
-
-    }
-
-    playDictionaryExercise() {        // Ensure barbell is hidden when idle or plank
-        if (['idle', 'plank'].includes(this.animState)) {
-             if (this.barbell) this.barbell.visible = false;
-             if (this.pullupBar) this.pullupBar.visible = false;
-             if (this.dbL) this.dbL.visible = false;
-             if (this.dbR) this.dbR.visible = false;
-        }
-
-    }
+    },
 
     playDictionaryExercise() {
         if (!this.state.webglInitialized) this.initWebGL();
@@ -1621,8 +1666,10 @@ const app = {
 
         const day = this.state.schedule[dayIndex];
 
-        document.getElementById('vis-details').style.display = 'block';
-        document.getElementById('vis-desc').innerText = `ISOLATING: ${day.focus} | INTENSITY: ${day.intensity}`;
+        const dDet = document.getElementById('vis-details');
+        if (dDet) dDet.style.display = 'block';
+        const dDesc = document.getElementById('vis-desc');
+        if (dDesc) dDesc.innerText = `ISOLATING: ${day.focus} | INTENSITY: ${day.intensity}`;
 
         // Cyber Colors
         const colors = {
@@ -1804,7 +1851,7 @@ const app = {
             `;
         }
 
-        document.getElementById('vis-equipment').innerHTML = equipmentHTML;
+        const visEq = document.getElementById('vis-equipment'); if(visEq) visEq.innerHTML = equipmentHTML;
     },
 
     updateNutritionModule() {
