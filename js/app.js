@@ -1505,8 +1505,10 @@ window.app = {
                       // Bind strictly to hand positions in FK space.
                       // Since barbell is centered, we just use the midpoint of left/right hands.
                       if (this.bodyParts['hand_l'] && this.bodyParts['hand_r']) {
-                          const hl = this.bodyParts['hand_l'].mesh.position;
-                          const hr = this.bodyParts['hand_r'].mesh.position;
+                          const hl = new THREE.Vector3();
+                          this.bodyParts['hand_l'].mesh.getWorldPosition(hl);
+                          const hr = new THREE.Vector3();
+                          this.bodyParts['hand_r'].mesh.getWorldPosition(hr);
                           this.barbell.position.set( (hl.x + hr.x) / 2, (hl.y + hr.y) / 2, (hl.z + hr.z) / 2 );
 
                           // If squatting, barbell actually sits on neck, not hands
@@ -1523,11 +1525,11 @@ window.app = {
              } else if (['curl', 'lunge'].includes(this.animState)) {
                   if (this.dbL) {
                       this.dbL.visible = true;
-                      this.dbL.position.copy(this.bodyParts['hand_l'].mesh.position);
+                      this.bodyParts['hand_l'].mesh.getWorldPosition(this.dbL.position);
                   }
                   if (this.dbR) {
                       this.dbR.visible = true;
-                      this.dbR.position.copy(this.bodyParts['hand_r'].mesh.position);
+                      this.bodyParts['hand_r'].mesh.getWorldPosition(this.dbR.position);
                   }
                   if (this.barbell) this.barbell.visible = false;
                   if (this.pullupBar) this.pullupBar.visible = false;
@@ -1564,7 +1566,8 @@ window.app = {
         this.animState = exType;
 
         // Set up the details panel manually
-        document.getElementById('vis-details').style.display = 'block';
+        const vDet = document.getElementById('vis-details');
+        if (vDet) vDet.style.display = 'block';
 
         let desc = "";
         let equipment = "";
@@ -1651,8 +1654,10 @@ window.app = {
             ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
         }
 
-        document.getElementById('vis-desc').innerText = desc;
-        document.getElementById('vis-equipment').innerHTML = equipment;
+        const dDesc2 = document.getElementById('vis-desc');
+        if (dDesc2) dDesc2.innerText = desc;
+        const dEq2 = document.getElementById('vis-equipment');
+        if (dEq2) dEq2.innerHTML = equipment;
     },
 
     updateWebGLVisualizer() {
