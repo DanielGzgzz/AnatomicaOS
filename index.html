@@ -29,7 +29,44 @@
             opacity: 0.5 !important;
         }
 
+
         /* Switch styling */
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr !important;
+            }
+            .main-nav {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .nav-btn {
+                flex: 1 1 45%; /* Buttons wrap nicely */
+                text-align: center;
+                padding: 0.8rem;
+                font-size: 0.9rem;
+            }
+            .os-header {
+                padding: 1rem;
+            }
+            .module {
+                padding: 1rem;
+            }
+
+            /* Make inputs on juicer responsive */
+            input[type="number"] {
+                width: 45px !important;
+                padding: 0.3rem !important;
+            }
+
+            /* Adjust visualizer container height for mobile */
+            #webgl-container {
+                min-height: 400px !important;
+                height: 400px !important;
+            }
+        }
+
         .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; }
@@ -210,51 +247,43 @@
             <div class="module-content" id="visualizer-content">
                 <div class="grid-2">
                     <div>
-                                                <div class="form-group mb-1">
-                            <label for="vis-day-select">Select Protocol Phase to Isolate</label>
+
+
+                        <div class="form-group mb-1">
+                            <label for="vis-dict-select">Strength Exercise Dictionary</label>
                             <div style="display: flex; gap: 0.5rem;">
-                                <select id="vis-day-select" onchange="app.updateWebGLVisualizer()" style="flex-grow: 1;">
-                                    <option value="" disabled selected>Select Exercise from Dictionary...</option>
-                                    <option value="squat">Barbell Back Squat</option>
-                                    <option value="deadlift">Deadlift / Pull</option>
-                                    <option value="press">Bench Press / Push</option>
-                                    <option value="pullup">Pull-Up (Bodyweight)</option>
-                                    <option value="overhead_press">Overhead Press</option>
-                                    <option value="barbell_row">Barbell Row</option>
-                                    <option value="bicep_curl">Bicep Curl (Isolation)</option>
-                                    <option value="triceps_pushdown">Triceps Pushdown (Cable)</option>
-                                    <option value="leg_extension">Leg Extension (Machine)</option>
-                                    <option value="leg_curl">Leg Curl (Machine)</option>
-                                    <option value="fullbody">Thruster / Full Body</option>
-                                    <option value="idle">Idle / Resting</option>
+                                <select id="vis-dict-select" onchange="app.playDictionaryExercise()" style="flex-grow: 1; padding: 0.5rem;">
+                                    <option value="">-- Select an exercise --</option>
+                                    <option value="squat">Barbell Squat (Lower Body)</option>
+                                    <option value="press">Bench Press (Upper Body Push)</option>
+                                    <option value="fullbody">Thruster (Full Kinetic Chain)</option>
+                                    <option value="deadlift">Deadlift (Posterior Chain)</option>
+                                    <option value="pullup">Pull-up (Upper Body Pull)</option>
+                                    <option value="lunge">Lunge (Unilateral Lower Body)</option>
+                                    <option value="plank">Plank (Core Stabilization)</option>
+                                    <option value="overhead_press">Overhead Press (Shoulders)</option>
+                                    <option value="row">Bent Over Row (Back)</option>
+                                    <option value="curl">Bicep Curl (Isolation)</option>
                                 </select>
-                                <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset</button>
+                                <button onclick="app.resetCamera()" class="btn-secondary" style="padding: 0.5rem; font-size: 0.8rem;" title="Reset Camera View">🎥 Reset Camera</button>
                             </div>
                         </div>
-                        <div class="result-card mt-1" id="vis-details" style="display:none; background: #111827; color: #e5e7eb; border: 1px solid #374151;">
-                            <h4 style="color: #60a5fa; border-bottom: 1px solid #374151;">System Diagnostics</h4>
-                            <p id="vis-desc" style="font-family: var(--font-mono); font-size: 0.9rem; margin-top: 0.5rem; color: #34d399;"></p>
 
-                            <h5 style="color: #9ca3af; margin-top: 1rem; font-family: var(--font-mono);">Recommended Modalities:</h5>
-                            <ul id="vis-equipment" style="list-style: none; margin-top: 0.5rem; font-size: 0.85rem; padding-left: 10px; border-left: 2px solid #3b82f6;">
-                            </ul>
-
-                            <ul style="list-style: none; margin-top: 1rem; font-size: 0.85rem; padding-top: 1rem; border-top: 1px solid #374151;">
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #ef4444; box-shadow: 0 0 5px #ef4444; margin-right: 5px;"></span> Primary Mover (High Stress)</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #3b82f6; box-shadow: 0 0 5px #3b82f6; margin-right: 5px;"></span> Synergist (Moderate Stress)</li>
-                                <li><span style="display: inline-block; width: 12px; height: 12px; background: #10b981; margin-right: 5px;"></span> Tissue Regeneration (Recovery)</li>
-                            </ul>
+                        <div class="form-group mb-1" style="display: none;">
+                            <select id="vis-day-select" onchange="app.updateWebGLVisualizer()"></select>
                         </div>
                     </div>
-                    <div id="webgl-container" style="background-color: #0a0a0c; border: 2px solid #1f2937; min-height: 500px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: grab;">
+                    <div id="webgl-container" style="background-color: var(--bg-card); border: 1px solid #e2e8f0; border-radius: 6px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); min-height: 500px; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: grab;">
                         <!-- WebGL Canvas Injected Here -->
-                        <div id="webgl-overlay" style="position: absolute; top: 10px; left: 10px; color: #10b981; font-family: 'Courier New', monospace; font-size: 12px; pointer-events: none; text-shadow: 0 0 5px rgba(16, 185, 129, 0.5);">
+                        <div id="webgl-overlay" style="position: absolute; top: 10px; left: 10px; color: var(--text-muted); font-family: 'Courier New', monospace; font-size: 12px; pointer-events: none;">
                             SYS.OPT: ONLINE<br>
                             RENDER: WebGL_PolyMesh_v2<br>
                             ORBIT: Active
                         </div>
+                        <div id="muscle-tooltip" style="position: absolute; display: none; background: rgba(255, 255, 255, 0.95); color: var(--text-main); padding: 8px 12px; border: 1px solid var(--accent-blue); border-radius: 4px; pointer-events: none; font-size: 12px; font-weight: bold; font-family: var(--font-mono); box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;">
+                        </div>
                     </div>
-                </div>
+
             </div>
         </section>
 
@@ -329,10 +358,14 @@
                         <p style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--text-muted);">Select ingredients to build your juice. The system will analyze sugar, micronutrients, acidity, and provide a hazard/benefit report.</p>
 
 
-                        <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+
+                        <div class="result-card mb-1" style="background: #f8fafc; border: 1px solid #e2e8f0; max-height: 500px; display: flex; flex-direction: column;">
                             <h4 style="color: #334155; margin-bottom: 0.5rem;">Ingredients (Input Units or Grams)</h4>
                             <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 1rem;">Values will automatically convert based on average weights.</p>
-                            <div class="grid-2" style="gap: 1rem;">
+
+                            <div style="overflow-y: auto; flex-grow: 1; padding-right: 10px;">
+                                <div class="grid-2" style="gap: 1rem;">
+
                                 <!-- Vegetables -->
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
@@ -356,6 +389,7 @@
                                             <input type="number" id="ing-celery-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('celery', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Spinach</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -378,13 +412,13 @@
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
-                                        <label>Potato</label>
+                                        <label>Potato (Sweet)</label>
                                         <div style="display: flex; gap: 0.25rem;">
                                             <input type="number" id="ing-potato" min="0" placeholder="Units" style="width: 50px;" oninput="app.syncJuicerInput('potato', 'unit')">
                                             <input type="number" id="ing-potato-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('potato', 'g')">
                                         </div>
                                     </div>
-                                </div>
+</div>
                                 <!-- Fruits & Aromatics -->
                                 <div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
@@ -394,6 +428,7 @@
                                             <input type="number" id="ing-apple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('apple', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Orange</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -402,12 +437,21 @@
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Pineapple</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-pineapple" min="0" placeholder="Cups" style="width: 50px;" oninput="app.syncJuicerInput('pineapple', 'unit')">
+                                            <input type="number" id="ing-pineapple-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('pineapple', 'g')">
+                                        </div>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Lemon</label>
                                         <div style="display: flex; gap: 0.25rem;">
                                             <input type="number" id="ing-lemon" min="0" placeholder="Halves" style="width: 50px;" oninput="app.syncJuicerInput('lemon', 'unit')">
                                             <input type="number" id="ing-lemon-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('lemon', 'g')">
                                         </div>
                                     </div>
+
                                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
                                         <label>Pineapple</label>
                                         <div style="display: flex; gap: 0.25rem;">
@@ -429,10 +473,24 @@
                                             <input type="number" id="ing-ginger-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('ginger', 'g')">
                                         </div>
                                     </div>
+                                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0;">
+                                        <label>Mint</label>
+                                        <div style="display: flex; gap: 0.25rem;">
+                                            <input type="number" id="ing-mint" min="0" placeholder="Leaves" style="width: 50px;" oninput="app.syncJuicerInput('mint', 'unit')">
+                                            <input type="number" id="ing-mint-g" min="0" placeholder="g" style="width: 60px;" oninput="app.syncJuicerInput('mint', 'g')">
+                                        </div>
+                                    </div>
+
+                                </div>
+
                                 </div>
                             </div>
-                            <button type="button" class="btn-primary mt-1" style="width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1.1rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" onclick="app.calculateJuice()">Mix Juice</button>
+
+                            <div style="margin-top: 1rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                                <button type="button" class="btn-primary" style="width: 100%; background: #be185d; padding: 1rem; font-size: 1.1rem; font-weight: bold; cursor: pointer; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(190, 24, 93, 0.4);" onclick="app.calculateJuice()">MIX JUICE</button>
+                            </div>
                         </div>
+
 
                     </div>
 

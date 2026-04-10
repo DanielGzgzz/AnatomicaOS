@@ -277,6 +277,7 @@ const app = {
                 const tr = document.createElement('tr');
                 tr.style.cursor = 'pointer';
                 tr.title = 'Click to view mechanics in 3D Visualizer';
+
                 tr.onclick = () => this.viewExerciseInVisualizer(day.originalIndex);
                 tr.innerHTML = `
                     <td><strong>${day.day}</strong></td>
@@ -292,15 +293,29 @@ const app = {
         document.getElementById('schedule-output').style.display = 'block';
     },
 
-    // Tri-Phasic Kinesiology Protocol
-
     viewExerciseInVisualizer(dayIndex) {
+
         this.showModule('visualizer');
-        const select = document.getElementById('vis-day-select');
-        select.value = dayIndex;
-        // manually dispatch change event to trigger update
-        select.dispatchEvent(new Event('change'));
+        const day = this.state.schedule[dayIndex];
+        const dictSelect = document.getElementById('vis-dict-select');
+
+        // Map protocol phase to dictionary exercise
+        if (day.phase === 'Strength') {
+            if (day.focus.toLowerCase().includes('lower')) {
+                dictSelect.value = 'squat';
+            } else if (day.focus.toLowerCase().includes('upper')) {
+                dictSelect.value = 'press';
+            } else {
+                dictSelect.value = 'fullbody';
+            }
+        } else {
+            // Default to fullbody for aerobic/anaerobic generic movement for now
+            dictSelect.value = 'fullbody';
+        }
+
+        dictSelect.dispatchEvent(new Event('change'));
     },
+
 
     updateKinesiologyProtocol() {
         if (!this.state.schedule) return;
@@ -458,12 +473,13 @@ const app = {
     resetCamera() {
         if (this.camera && this.controls) {
             // Reset to initial position
-            this.camera.position.set(0, 5, 18);
+            this.camera.position.set(0, 2, 22);
             this.camera.lookAt(0, 0, 0);
             this.controls.target.set(0, 0, 0);
             this.controls.update();
         }
     },
+
 
     initWebGL() {
         if (this.state.webglInitialized) return;
@@ -471,13 +487,19 @@ const app = {
         const container = document.getElementById('webgl-container');
         if (!container) return;
 
-        const width = container.clientWidth || 400;
-        const height = container.clientHeight || 500;
+        // More responsive canvas sizing fitting within viewport minus header/padding
+        let height = window.innerHeight - 250;
+        if (height < 500) height = 500;
+        container.style.minHeight = height + "px";
+        container.style.height = height + "px";
+
+        const width = container.clientWidth;
+
 
         // Scene Setup
         this.scene = new THREE.Scene();
         // Add dynamic grid to floor
-        this.gridHelper = new THREE.GridHelper(50, 50, 0x10b981, 0x111827);
+        this.gridHelper = new THREE.GridHelper(50, 50, 0xa7f3d0, 0xd1d5db);
         this.gridHelper.position.y = -8.5;
         // Disable depth write for grid to prevent z-fighting with trails or contact shadow
         this.gridHelper.material.depthWrite = false;
@@ -487,7 +509,7 @@ const app = {
 
         // Camera Setup
         this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-        this.camera.position.set(0, 0, 15);
+        this.camera.position.set(0, 2, 22); // Zoomed out and slightly raised to show full body
 
         // Renderer Setup
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -703,6 +725,58 @@ const app = {
         createMuscle(polyGeo, 'foot_l', -1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
         createMuscle(polyGeo, 'foot_r', 1.1, -7.2, 0.5, 0.7, 0.4, 1.3);
 
+        // --- 6. Equipment Geometries ---
+        // Distinct dark iron color to stand out as requested
+        const ironMat = new THREE.MeshPhongMaterial({ color: 0x111111, emissive: 0x050505, shininess: 80, specular: 0x888888 });
+
+        // Barbell (used in squat, deadlift, press, thruster, row, overhead_press)
+        const barGeo = new THREE.CylinderGeometry(0.1, 0.1, 14, 8);
+        const plateGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.4, 16);
+        this.barbell = new THREE.Group();
+        const barMesh = new THREE.Mesh(barGeo, ironMat);
+        barMesh.rotation.z = Math.PI / 2; // Horizontal
+        this.barbell.add(barMesh);
+        const plateL = new THREE.Mesh(plateGeo, ironMat);
+        plateL.rotation.z = Math.PI / 2;
+        plateL.position.x = -6.0;
+        this.barbell.add(plateL);
+        const plateR = new THREE.Mesh(plateGeo, ironMat);
+        plateR.rotation.z = Math.PI / 2;
+        plateR.position.x = 6.0;
+        this.barbell.add(plateR);
+        this.scene.add(this.barbell); // Add to scene to avoid body rotation issues
+
+        // Dumbbells (used in lunge, curl)
+        const dbBarGeo = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+        const dbPlateGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.4, 16);
+        const createDumbbell = () => {
+            const db = new THREE.Group();
+            const bar = new THREE.Mesh(dbBarGeo, ironMat);
+            bar.rotation.x = Math.PI / 2; // Point forward/back based on grip
+            db.add(bar);
+            const p1 = new THREE.Mesh(dbPlateGeo, ironMat);
+            p1.rotation.x = Math.PI / 2;
+            p1.position.z = -0.8;
+            db.add(p1);
+            const p2 = new THREE.Mesh(dbPlateGeo, ironMat);
+            p2.rotation.x = Math.PI / 2;
+            p2.position.z = 0.8;
+            db.add(p2);
+            return db;
+        };
+        this.dbL = createDumbbell();
+        this.dbR = createDumbbell();
+        this.scene.add(this.dbL);
+        this.scene.add(this.dbR);
+
+        // Pull-up Bar (Static)
+        const pullupBarGeo = new THREE.CylinderGeometry(0.15, 0.15, 16, 8);
+        this.pullupBar = new THREE.Mesh(pullupBarGeo, ironMat);
+        this.pullupBar.rotation.z = Math.PI / 2;
+        this.pullupBar.position.y = 8.0;
+        this.pullupBar.position.z = 1.0;
+        this.scene.add(this.pullupBar);
+
         // Raycasting for Tooltips
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -830,6 +904,18 @@ const app = {
         this.time = 0;
 
         // Setup initial default positions to allow interpolation
+        // State object to hold smoothed values for interpolated transitions
+        this.jointStates = {
+            torsoDrop: 0,
+            torsoHinge: 0,
+            shoulderFlexion: 0,
+            elbowFlexion: 0,
+            hipFlexionL: 0, kneeFlexionL: 0,
+            hipFlexionR: 0, kneeFlexionR: 0,
+            groupRotX: 0, groupPosY: 0, groupPosZ: 0,
+            wristBend: 0, forearmTwist: 0 // New joint values for hands
+        };
+
         this.basePositions = {};
         Object.keys(this.bodyParts).forEach(key => {
             this.basePositions[key] = {
@@ -850,6 +936,46 @@ const app = {
                 primary: ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'],
                 synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
                 animation: "procedural_press"
+            },
+                        "fullbody": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'],
+                synergists: ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'traps_l', 'traps_r'],
+                animation: "fullbody"
+            },
+            "deadlift": {
+                primary: ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'],
+                synergists: ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'],
+                animation: "deadlift"
+            },
+            "pullup": {
+                primary: ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'],
+                synergists: ['traps_l', 'traps_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'forearm_l', 'forearm_r'],
+                animation: "pullup"
+            },
+            "lunge": {
+                primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'],
+                synergists: ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'],
+                animation: "lunge"
+            },
+            "plank": {
+                primary: ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'],
+                synergists: ['delt_l', 'delt_r', 'pec_l', 'pec_r', 'quad_l', 'quad_r', 'glute_l', 'glute_r'],
+                animation: "plank"
+            },
+            "overhead_press": {
+                primary: ['delt_l', 'delt_r', 'tricep_l', 'tricep_r'],
+                synergists: ['traps_l', 'traps_r', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'],
+                animation: "overhead_press"
+            },
+            "row": {
+                primary: ['lat_l', 'lat_r', 'traps_l', 'traps_r'],
+                synergists: ['bicep_l', 'bicep_r', 'lower_back', 'ham_l', 'ham_r', 'glute_l', 'glute_r'],
+                animation: "row"
+            },
+            "curl": {
+                primary: ['bicep_l', 'bicep_r'],
+                synergists: ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'],
+                animation: "curl"
             },
             "idle": {
                 primary: [],
@@ -915,36 +1041,60 @@ const app = {
             this.updateProceduralMotion(delta, breath);
 
             // Update Floating UI Label
-                        if (this.animState !== 'idle' && this.state.schedule) {
-                let targetPart = null;
-                if (this.animState === 'squat' && this.bodyParts['quad_l']) {
-                    targetPart = this.bodyParts['quad_l'].mesh;
-                    this.activeLabel.innerText = "QUADRICEPS_FEMORIS [ACTIVE]";
-                } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
-                    targetPart = this.bodyParts['pec_l'].mesh;
-                    this.activeLabel.innerText = "PECTORALIS_MAJOR [ACTIVE]";
-                } else if (this.animState === 'fullbody' && this.bodyParts['delt_l']) {
-                    targetPart = this.bodyParts['delt_l'].mesh;
-                    this.activeLabel.innerText = "FULL_KINETIC_CHAIN [ACTIVE]";
-                }
+        if (this.animState !== 'idle') {
+            let targetPart = null;
+            let activeName = "ACTIVE_MOVER";
 
-                if (targetPart) {
-                    const vector = new THREE.Vector3();
-                    // Get world position of the target part
-                    targetPart.getWorldPosition(vector);
-                    // Project to 2D screen space
-                    vector.project(this.camera);
-
-                    const x = (vector.x * .5 + .5) * container.clientWidth;
-                    const y = (vector.y * -.5 + .5) * container.clientHeight;
-
-                    this.activeLabel.style.left = `${x + 20}px`;
-                    this.activeLabel.style.top = `${y - 20}px`;
-                    this.activeLabel.style.display = 'block';
-                }
-            } else {
-                this.activeLabel.style.display = 'none';
+            if (this.animState === 'squat' && this.bodyParts['quad_l']) {
+                targetPart = this.bodyParts['quad_l'].mesh;
+                activeName = "QUADRICEPS_FEMORIS [ACTIVE]";
+            } else if (this.animState === 'press' && this.bodyParts['pec_l']) {
+                targetPart = this.bodyParts['pec_l'].mesh;
+                activeName = "PECTORALIS_MAJOR [ACTIVE]";
+            } else if (this.animState === 'fullbody' && this.bodyParts['delt_l']) {
+                targetPart = this.bodyParts['delt_l'].mesh;
+                activeName = "FULL_KINETIC_CHAIN [ACTIVE]";
+            } else if (this.animState === 'deadlift' && this.bodyParts['glute_l']) {
+                targetPart = this.bodyParts['glute_l'].mesh;
+                activeName = "POSTERIOR_CHAIN [ACTIVE]";
+            } else if (this.animState === 'pullup' && this.bodyParts['lat_l']) {
+                targetPart = this.bodyParts['lat_l'].mesh;
+                activeName = "LATISSIMUS_DORSI [ACTIVE]";
+            } else if (this.animState === 'lunge' && this.bodyParts['quad_l']) {
+                targetPart = this.bodyParts['quad_l'].mesh;
+                activeName = "QUADRICEPS_FEMORIS [ACTIVE]";
+            } else if (this.animState === 'plank' && this.bodyParts['abs_1l']) {
+                targetPart = this.bodyParts['abs_1l'].mesh;
+                activeName = "CORE_STABILIZATION [ACTIVE]";
+            } else if (this.animState === 'overhead_press' && this.bodyParts['delt_l']) {
+                targetPart = this.bodyParts['delt_l'].mesh;
+                activeName = "DELTOIDS [ACTIVE]";
+            } else if (this.animState === 'row' && this.bodyParts['lat_l']) {
+                targetPart = this.bodyParts['lat_l'].mesh;
+                activeName = "LATISSIMUS_DORSI [ACTIVE]";
+            } else if (this.animState === 'curl' && this.bodyParts['bicep_l']) {
+                targetPart = this.bodyParts['bicep_l'].mesh;
+                activeName = "BICEPS_BRACHII [ACTIVE]";
             }
+
+            if (targetPart) {
+                this.activeLabel.innerText = activeName;
+                const vector = new THREE.Vector3();
+                // Get world position of the target part
+                targetPart.getWorldPosition(vector);
+                // Project to 2D screen space
+                vector.project(this.camera);
+
+                const x = (vector.x * .5 + .5) * container.clientWidth;
+                const y = (vector.y * -.5 + .5) * container.clientHeight;
+
+                this.activeLabel.style.left = `${x + 20}px`;
+                this.activeLabel.style.top = `${y - 20}px`;
+                this.activeLabel.style.display = 'block';
+            }
+        } else {
+            this.activeLabel.style.display = 'none';
+        }
 
             // Update Dynamic Grid and Contact Shadow
             if (this.gridHelper) {
@@ -1045,6 +1195,7 @@ const app = {
                             part.trailLine.geometry.attributes.position.needsUpdate = true;
                             // Match color to glow color
                             part.trailLine.material.color.copy(part.mesh.material.color);
+                            part.trailLine.material.opacity = 0.8;
                             part.trailLine.visible = true;
                         }
                     }
@@ -1074,73 +1225,65 @@ const app = {
     },
 
     updateProceduralMotion(delta, breath) {
-        // Simple state machine for procedural exercises using interpolated keyframes
         if (!this.bodyParts['head']) return;
 
-        // Apply breathing as base
-        this.bodyParts['pec_l'].mesh.position.z = this.basePositions['pec_l'].pos.z + breath;
-        this.bodyParts['pec_r'].mesh.position.z = this.basePositions['pec_r'].pos.z + breath;
-        this.bodyParts['abs_1l'].mesh.position.z = this.basePositions['abs_1l'].pos.z + breath * 0.5;
-        this.bodyParts['abs_1r'].mesh.position.z = this.basePositions['abs_1r'].pos.z + breath * 0.5;
+        // --- 1. Procedural Life & Micro-Sway ---
+        // Scale sway by state. Less sway when under tension (active)
+        const swayAmp = this.animState === 'idle' ? 0.05 : 0.01;
+        this.bodyGroup.rotation.y = Math.sin(this.time * 0.5) * swayAmp;
+        this.bodyGroup.rotation.z = Math.cos(this.time * 0.3) * (swayAmp * 0.5);
 
-        // Procedural Life: Micro-Sway
-        // Apply very slow, low-amplitude noise/rotation to the entire body group
-        this.bodyGroup.rotation.y = Math.sin(this.time * 0.5) * 0.05;
-        this.bodyGroup.rotation.z = Math.cos(this.time * 0.3) * 0.02;
-
-        // Procedural Life: Breathing Scale
-        const breathScale = 1.0 + Math.sin(this.time * 2) * 0.02; // 1.0 to 1.02
+        const breathScale = 1.0 + Math.sin(this.time * 2) * 0.02;
         ['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].forEach(p => {
             if(this.bodyParts[p]) {
                 this.bodyParts[p].mesh.scale.set(
-                    this.basePositions[p].scale.x, // keep orig (actually it's scaled in create, but we're modifying absolute here, wait)
-                    // It's safer to read from initial scale. Let's add initial scale to basePositions
+                    this.basePositions[p].scale.x,
                     this.basePositions[p].scale.y * breathScale,
                     this.basePositions[p].scale.z * breathScale
                 );
             }
         });
 
-        // Interpolation helper
-        const lerp = (start, end, alpha) => start + (end - start) * alpha;
-
-        // Reset all muscles to neutral before applying active state
+        // --- 2. Neutral Reset ---
+        // EVERYTHING must be strictly reset to its base position before applying the IK math,
+        // otherwise rotations and translations from a previous exercise (e.g. deadlift hinge) will compound into warped meshes like the abs flying off.
         Object.keys(this.bodyParts).forEach(key => {
             const part = this.bodyParts[key];
-            if (!['pec_l', 'pec_r', 'abs_1l', 'abs_1r'].includes(key)) {
-                part.mesh.scale.copy(this.basePositions[key].scale);
-            }
-            part.mesh.material.color.setHex(0xd2b48c); // Reset to fleshy color
+            part.mesh.scale.copy(this.basePositions[key].scale);
+            part.mesh.position.copy(this.basePositions[key].pos);
+            part.mesh.rotation.copy(this.basePositions[key].rot);
+
+            part.mesh.material.color.setHex(0xd2b48c); // Fleshy reset
             part.mesh.material.emissive.setHex(0x000000);
         });
 
+        // Only apply breathing translations *after* the strict reset
+        // To preserve breathing safely, we just modify the base Z mathematically without skipping the reset.
+        this.bodyParts['pec_l'].mesh.position.z += breath;
+        this.bodyParts['pec_r'].mesh.position.z += breath;
+        this.bodyParts['abs_1l'].mesh.position.z += breath * 0.5;
+        this.bodyParts['abs_1r'].mesh.position.z += breath * 0.5;
+
+        // --- 3. Dynamic Illumination & Pulsing ---
         let map = this.MovementMap[this.animState] || this.MovementMap["idle"];
         const pulse = (Math.sin(this.time * 4) + 1) / 2; // 0 to 1 fast pulse
 
         if (this.animState !== 'idle') {
-            // Apply Inflation & Color to Primary Movers
             map.primary.forEach(p => {
                 if(this.bodyParts[p]) {
                     const base = this.basePositions[p].scale;
-                    // Inflate by 15% + pulse effect
                     const inflate = 1.15 + (pulse * 0.05);
                     this.bodyParts[p].mesh.scale.set(base.x * inflate, base.y * inflate, base.z * inflate);
-
-                    // Fluorescent Red with emissive pulse
                     this.bodyParts[p].mesh.material.color.setHex(0xff3333);
                     this.bodyParts[p].mesh.material.emissive.setHex(0xff0000);
                     this.bodyParts[p].mesh.material.emissiveIntensity = 0.5 + pulse * 0.5;
                 }
             });
-
-            // Apply minor inflation & Color to Synergists
             map.synergists.forEach(p => {
                 if(this.bodyParts[p]) {
                     const base = this.basePositions[p].scale;
                     const inflate = 1.05 + (pulse * 0.02);
                     this.bodyParts[p].mesh.scale.set(base.x * inflate, base.y * inflate, base.z * inflate);
-
-                    // Fluorescent Cyan for synergists
                     this.bodyParts[p].mesh.material.color.setHex(0x00ffff);
                     this.bodyParts[p].mesh.material.emissive.setHex(0x0088ff);
                     this.bodyParts[p].mesh.material.emissiveIntensity = 0.3 + pulse * 0.3;
@@ -1148,380 +1291,459 @@ const app = {
             });
         }
 
-        if (this.animState === 'squat') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.squat;
-            const drop = lerp(r.start.yDrop, r.mid.yDrop, phase);
-            const hinge = lerp(r.start.bend, r.mid.bend, phase);
-            const kneeRot = lerp(r.start.kneeOut, r.mid.kneeOut, phase);
+        // --- 4. Kinematic Drivers ---
+        // We define phase (0 to 1) for the current motion
+        const lerp = (start, end, alpha) => start + (end - start) * alpha;
+        let phase = (Math.sin(this.time * 2.5) + 1) / 2;
 
-            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r'];
+        // Core variables driven by animation state
+        let t.torsoDrop = 0; // Y axis translation of upper body
+        let t.torsoHinge = 0; // X axis rotation of upper body (pitch)
+        let t.shoulderFlexion = 0; // Arm rotation X (lifting arms forward/up)
+        let t.elbowFlexion = 0; // Forearm rotation relative to bicep
+        let hipFlexion = 0; // Thigh rotation X (lifting knee)
+        let kneeFlexion = 0; // Calf rotation relative to thigh
 
-            torsoParts.forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
-                    // Hinge forward slightly
-                    if (!['arm', 'hand', 'forearm', 'bicep', 'tricep', 'delt', 'elbow'].some(keyword => p.includes(keyword))) {
-                        this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + hinge;
-                        this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + hinge;
-                    }
-                }
-            });
+        let orientation = 'vertical'; // vertical (up/down) or horizontal (push/pull) or static
 
-            // Rotate hip/knee joints X-axis until thigh mesh breaks parallel. Reverse.
-            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    // Rotate until parallel
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - (drop * 0.5);
-                }
-            });
-
-            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.4;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + (drop * 0.2);
-                }
-            });
-            ['knee_l', 'knee_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
-                }
-            });
-
-        } else if (this.animState === 'deadlift') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.deadlift;
-            const bend = lerp(r.start.bend, r.mid.bend, phase);
-            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-
-            // Bipedal, hip X-rotated (hinged). Hand IK at y=0. Translate root +y. Rotate hip/knee X-axis to 0. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY + handY;
-                    mesh.position.z = base.pos.z + bend;
-                    mesh.rotation.x = base.rot.x; // Keep hands pointing down (IK at y=0)
-                } else if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY - bend * 1.5;
-                    mesh.position.z = base.pos.z + bend * 1.5;
-                    mesh.rotation.x = base.rot.x + bend; // Rotate hip X-axis (hinged)
-                } else if (['glute_l', 'glute_r', 'pelvis', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'pec_l', 'pec_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY - bend * 0.5;
-                    mesh.position.z = base.pos.z + bend * 0.5;
-                    mesh.rotation.x = base.rot.x + (bend * 0.5);
-                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY * 0.5;
-                    mesh.position.z = base.pos.z;
-                    mesh.rotation.x = base.rot.x - (bend * 0.1);
-                } else if (['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY - bend * 1.2;
-                    mesh.position.z = base.pos.z + bend * 1.2;
-                    mesh.rotation.x = base.rot.x + bend;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'press') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2; // 0 to 1 smooth
-            const recipe = this.exerciseRecipes.press;
-            const push = lerp(recipe.start.push, recipe.mid.push, phase);
-
-            // Supine, rooted at y=bench_height. Hand IK +y (extended). Translate hand IK -y until collision with chest mesh. Reverse.
-            // For now, we simulate supine by just moving arms forward/back like a standing press, as rotating the whole mesh supine requires full body rot.
-            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 1;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
-                }
-            });
-            ['elbow_l', 'elbow_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1.5;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y + push * 0.5;
-                }
-            });
-
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
-                }
-            });
-
-            // Reset other parts
-            Object.keys(this.bodyParts).forEach(p => {
-                if (!['hand_l', 'hand_r', 'forearm_l', 'forearm_r', 'elbow_l', 'elbow_r', 'bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].includes(p)) {
-                    this.bodyParts[p].mesh.position.copy(this.basePositions[p].pos);
-                    this.bodyParts[p].mesh.rotation.copy(this.basePositions[p].rot);
-                }
-            });
-
-
-        } else if (this.animState === 'pullup') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.pullup;
-            const rootY = lerp(r.start.rootY, r.mid.rootY, phase);
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            // Suspended, hand IK anchored +y. Translate root +y. Rotate shoulder/elbow joints. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r'].includes(p)) {
-                    mesh.position.copy(base.pos);
-                    mesh.position.y += 2.5; // Anchored high
-                    mesh.rotation.x = base.rot.x;
-                } else if (['forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + 2.5 - elbowRot * 0.5 + rootY;
-                    mesh.position.z = base.pos.z + elbowRot * 0.5;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + rootY + 1.0;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else {
-                    mesh.position.y = base.pos.y + rootY;
-                    mesh.position.z = base.pos.z;
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'overhead_press') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.overhead_press;
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            // Bipedal, hand IK at clavicle coordinates. Translate hand IK +y until elbow rotation =0. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + handY;
-                    mesh.position.z = base.pos.z + handZ;
-                    mesh.rotation.x = base.rot.x + elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'elbow_l', 'elbow_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + handY * 0.5;
-                    mesh.rotation.x = base.rot.x + elbowRot * 0.5;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'barbell_row') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.barbell_row;
-            const bend = r.start.bend; // Static hold
-            const handY = lerp(r.start.handY, r.mid.handY, phase);
-            const handZ = lerp(r.start.handZ, r.mid.handZ, phase);
-
-            // Bipedal, hip X-rotated 45-90 degrees. Translate hand IK +y to abdomen mesh. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-
-                // Static hinge
-                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck'].includes(p)) {
-                    mesh.position.y = base.pos.y - bend * 1.5;
-                    mesh.position.z = base.pos.z + bend * 1.5;
-                    mesh.rotation.x = base.rot.x + bend;
-                } else if (['glute_l', 'glute_r', 'pelvis'].includes(p)) {
-                    mesh.position.z = base.pos.z - bend * 0.5;
-                } else if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + handY;
-                    mesh.position.z = base.pos.z + bend * 1.5 + handZ;
-                    mesh.rotation.x = base.rot.x + bend;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r', 'elbow_l', 'elbow_r'].includes(p)) {
-                    mesh.position.y = base.pos.y - bend * 1.0;
-                    mesh.position.z = base.pos.z + bend * 1.0 + handZ * 0.5;
-                    mesh.rotation.x = base.rot.x + bend - (handZ * 0.5);
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'bicep_curl') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.bicep_curl;
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            // Bipedal, arms extended (y=0). Rotate elbow X-axis to maximum flexion. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + elbowRot * 1.5;
-                    mesh.position.z = base.pos.z + elbowRot * 1.5;
-                    mesh.rotation.x = base.rot.x - elbowRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'triceps_pushdown') {
-            const phase = (Math.sin(this.time * 3) + 1) / 2;
-            const r = this.exerciseRecipes.triceps_pushdown;
-            const elbowRot = lerp(r.start.elbowRot, r.mid.elbowRot, phase);
-
-            // Bipedal, elbows flexed, hand IK at chest height. Rotate elbow X-axis to 0 (extension). Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-                if (['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + elbowRot * 1.5;
-                    mesh.position.z = base.pos.z + elbowRot * 1.5;
-                    mesh.rotation.x = base.rot.x - elbowRot;
-                } else if (['bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'delt_l', 'delt_r'].includes(p)) {
-                    mesh.rotation.x = base.rot.x - 0.5; // Arms slightly forward
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'leg_extension') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.leg_extension;
-            const rootRotX = r.start.rootRotX; // Seated
-            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
-
-            // Seated, hip X-rotation 90, knee X-rotation 90. Rotate knee X-axis to 0. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-
-                // Seated torso
-                if (['lower_back', 'lat_l', 'lat_r', 'traps_l', 'traps_r', 'head', 'neck', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r', 'delt_l', 'delt_r', 'bicep_l', 'bicep_r', 'tricep_l', 'tricep_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r', 'elbow_l', 'elbow_r'].includes(p)) {
-                    mesh.position.y = base.pos.y - 2.0;
-                    mesh.position.z = base.pos.z - 2.0;
-                } else if (['quad_l', 'quad_r', 'ham_l', 'ham_r', 'glute_l', 'glute_r', 'pelvis'].includes(p)) {
-                    mesh.position.y = base.pos.y - 2.0;
-                    mesh.rotation.x = base.rot.x - rootRotX;
-                    mesh.position.z = base.pos.z + 1.0;
-                } else if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + kneeRot * 1.5 - 2.0;
-                    mesh.position.z = base.pos.z + kneeRot * 2.0 + 1.0;
-                    mesh.rotation.x = base.rot.x - rootRotX + kneeRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'leg_curl') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            const r = this.exerciseRecipes.leg_curl;
-            const kneeRot = lerp(r.start.kneeRot, r.mid.kneeRot, phase);
-
-            // Prone or Seated, knee X-rotation 0. Rotate knee X-axis to 90+. Reverse.
-            Object.keys(this.bodyParts).forEach(p => {
-                const mesh = this.bodyParts[p].mesh;
-                const base = this.basePositions[p];
-
-                if (['calf_l', 'calf_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r'].includes(p)) {
-                    mesh.position.y = base.pos.y + kneeRot * 2.0;
-                    mesh.position.z = base.pos.z - kneeRot * 1.5;
-                    mesh.rotation.x = base.rot.x + kneeRot;
-                } else {
-                    mesh.position.copy(base.pos);
-                    mesh.rotation.copy(base.rot);
-                }
-            });
-
-        } else if (this.animState === 'fullbody') {
-            const phase = (Math.sin(this.time * 2.5) + 1) / 2; // 0 to 1 smooth
-            const recipe = this.exerciseRecipes.fullbody;
-
-            const drop = lerp(recipe.start.yDrop, recipe.mid.yDrop, phase);
-            const push = lerp(recipe.start.push, recipe.mid.push, phase);
-
-            const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back','pelvis','glute_l','glute_r', 'delt_l', 'delt_r'];
-
-            torsoParts.forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop;
-                }
-            });
-
-            ['quad_l', 'ham_l', 'quad_r', 'ham_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop * 0.5;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.5;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - drop * 0.2;
-                }
-            });
-
-            ['calf_l', 'shin_l', 'calf_r', 'shin_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop * 0.2;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + drop * 0.2;
-                }
-            });
-            ['knee_l', 'knee_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + 1.0;
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + drop;
-                }
-            });
-
-            // Move arms up and forward (like a thruster)
-            ['hand_l', 'hand_r', 'forearm_l', 'forearm_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 2;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 3;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
-                }
-            });
-            ['elbow_l', 'elbow_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + push * 1;
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.5;
-                }
-            });
-            ['bicep_l', 'tricep_l', 'bicep_r', 'tricep_r'].forEach(p => {
-                if(this.bodyParts[p]) {
-                    this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - drop + push * 1.0;
-                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x - push * 0.5;
-                }
-            });
+        // Exercise specific overrides
+        if (this.animState === 'press') {
+             t.groupRotX = -Math.PI / 2;
+             t.groupPosY = -3.0;
+             t.groupPosZ = 3.0;
+        } else if (this.animState === 'plank') {
+             t.groupRotX = Math.PI / 2;
+             const tremor = Math.sin(this.time * 8) * 0.05;
+             t.groupPosY = -2.5 + tremor;
         } else {
-            // Reset to base positions
-            Object.keys(this.bodyParts).forEach(p => {
-                if(!['pec_l','pec_r','abs_1l','abs_1r'].includes(p)) {
-                    this.bodyParts[p].mesh.position.copy(this.basePositions[p].pos);
-                }
-                this.bodyParts[p].mesh.rotation.copy(this.basePositions[p].rot);
-            });
+             t.groupRotX = 0;
+             t.groupPosY = 0;
+             t.groupPosZ = 0;
         }
+
+        if (this.animState === 'squat') {
+            phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            t.torsoDrop = phase * 2.0;
+            hipFlexion = phase * 0.8;
+            kneeFlexion = phase * 1.0;
+        } else if (this.animState === 'press') {
+            orientation = 'horizontal';
+            phase = (Math.sin(this.time * 3) + 1) / 2;
+            t.shoulderFlexion = phase * 1.2; // Push forward
+            t.elbowFlexion = -phase * 1.5; // Extend arm
+        } else if (this.animState === 'fullbody') {
+            phase = (Math.sin(this.time * 2.0) + 1) / 2;
+            t.torsoDrop = phase * 2.0;
+            hipFlexion = phase * 0.8;
+            kneeFlexion = phase * 1.0;
+            // Thruster: arms up when drop is 0
+            t.shoulderFlexion = (1 - phase) * -2.5;
+            t.elbowFlexion = 0; // Kept relatively straight at top
+        } else if (this.animState === 'deadlift') {
+            phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            t.torsoHinge = phase * 1.2; // Hinge forward
+            hipFlexion = phase * 1.2; // hinge requires massive hip flexion
+            kneeFlexion = phase * 0.2; // straightish legs
+            t.shoulderFlexion = -torsoHinge; // Arms hang straight down (counter-rotate)
+        } else if (this.animState === 'pullup') {
+            phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
+            t.shoulderFlexion = phase * -1.5; // Pull elbows down relative to torso
+            t.elbowFlexion = phase * 2.0; // Bend elbows
+        } else if (this.animState === 'lunge') {
+            phase = (Math.sin(this.time * 2.5) + 1) / 2;
+            t.torsoDrop = phase * 1.8;
+            // Leg logic handled specially below due to asymmetry
+        } else if (this.animState === 'plank') {
+            orientation = 'horizontal';
+            t.torsoHinge = Math.PI / 2; // Flat
+            t.torsoDrop = 5.0; // Down to ground
+            t.shoulderFlexion = Math.PI / 2; // Arms straight down
+        } else if (this.animState === 'overhead_press') {
+            phase = (Math.sin(this.time * 3) + 1) / 2;
+            t.shoulderFlexion = phase * -2.8; // Press straight up
+            t.elbowFlexion = phase * -1.0; // Straighten elbows
+        } else if (this.animState === 'row') {
+            orientation = 'horizontal';
+            phase = (Math.sin(this.time * 3) + 1) / 2;
+            t.torsoHinge = 1.0; // Static hinge
+            hipFlexion = 0.2;
+            kneeFlexion = 0.2;
+            t.shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
+            t.elbowFlexion = phase * 1.8; // Bend elbows
+        } else if (this.animState === 'curl') {
+            phase = (Math.sin(this.time * 3) + 1) / 2;
+            t.shoulderFlexion = phase * -0.2; // slight shift
+            t.elbowFlexion = phase * 2.0; // Curl forearm up
+        }
+
+        // --- 4.2 LERP Engine (Smooth transitions across exercise changes) ---
+        // Lerp factor (higher is faster snap, lower is sluggish). Use delta time for framerate independence.
+        // We use a high rate so normal motion tracks fast, but changing exercises takes a half second visually.
+        const lerpSpeed = 5.0 * delta;
+
+        this.jointStates.torsoDrop = lerp(this.jointStates.torsoDrop, t.torsoDrop, lerpSpeed);
+        this.jointStates.torsoHinge = lerp(this.jointStates.torsoHinge, t.torsoHinge, lerpSpeed);
+        this.jointStates.shoulderFlexion = lerp(this.jointStates.shoulderFlexion, t.shoulderFlexion, lerpSpeed);
+        this.jointStates.elbowFlexion = lerp(this.jointStates.elbowFlexion, t.elbowFlexion, lerpSpeed);
+        this.jointStates.hipFlexionL = lerp(this.jointStates.hipFlexionL, t.hipFlexionL, lerpSpeed);
+        this.jointStates.kneeFlexionL = lerp(this.jointStates.kneeFlexionL, t.kneeFlexionL, lerpSpeed);
+        this.jointStates.hipFlexionR = lerp(this.jointStates.hipFlexionR, t.hipFlexionR, lerpSpeed);
+        this.jointStates.kneeFlexionR = lerp(this.jointStates.kneeFlexionR, t.kneeFlexionR, lerpSpeed);
+        this.jointStates.groupRotX = lerp(this.jointStates.groupRotX, t.groupRotX, lerpSpeed);
+        this.jointStates.groupPosY = lerp(this.jointStates.groupPosY, t.groupPosY, lerpSpeed);
+        this.jointStates.groupPosZ = lerp(this.jointStates.groupPosZ, t.groupPosZ, lerpSpeed);
+        this.jointStates.wristBend = lerp(this.jointStates.wristBend, t.wristBend, lerpSpeed);
+        this.jointStates.forearmTwist = lerp(this.jointStates.forearmTwist, t.forearmTwist, lerpSpeed);
+
+        // Apply interpolated horizontal states
+        this.bodyGroup.rotation.x = this.jointStates.groupRotX;
+        this.bodyGroup.position.y = this.jointStates.groupPosY;
+        this.bodyGroup.position.z = this.jointStates.groupPosZ;
+
+        // Alias for the FK math block to use cleanly
+        const torsoDrop = this.jointStates.torsoDrop;
+        const torsoHinge = this.jointStates.torsoHinge;
+        const shoulderFlexion = this.jointStates.shoulderFlexion;
+        const elbowFlexion = this.jointStates.elbowFlexion;
+        const hipFlexionL = this.jointStates.hipFlexionL;
+        const kneeFlexionL = this.jointStates.kneeFlexionL;
+        const hipFlexionR = this.jointStates.hipFlexionR;
+        const kneeFlexionR = this.jointStates.kneeFlexionR;
+        const wristBend = this.jointStates.wristBend;
+        const forearmTwist = this.jointStates.forearmTwist;
+
+        // --- 5. Forward Kinematics Application ---
+
+        // A) Torso
+        const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back', 'pelvis'];
+
+        // Pivot point for hinge is lower back / pelvis
+        const pivotY = this.basePositions['pelvis'].pos.y;
+
+        torsoParts.forEach(p => {
+            if(this.bodyParts[p]) {
+                // 1. Translation
+                this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - torsoDrop;
+
+                // 2. Rotation (Hinge)
+                if (torsoHinge !== 0 && p !== 'pelvis') {
+                    // Rotate around pelvis pivot
+                    const dy = this.basePositions[p].pos.y - pivotY;
+                    const dz = this.basePositions[p].pos.z;
+
+                    // Simple 2D rotation matrix for X-axis pitch
+                    this.bodyParts[p].mesh.position.y = pivotY - torsoDrop + (dy * Math.cos(torsoHinge) - dz * Math.sin(torsoHinge));
+                    this.bodyParts[p].mesh.position.z = (dy * Math.sin(torsoHinge) + dz * Math.cos(torsoHinge));
+
+                    this.bodyParts[p].mesh.rotation.x = this.basePositions[p].rot.x + torsoHinge;
+                }
+            }
+        });
+
+        // B) Arms (Shoulder -> Bicep -> Elbow -> Forearm -> Hand)
+        const processArm = (side, shoulderOffset) => {
+            const delt = `delt_${side}`;
+            const bicep = `bicep_${side}`;
+            const elbow = `elbow_${side}`;
+            const forearm = `forearm_${side}`;
+            const hand = `hand_${side}`;
+
+            // Shoulder follows torso
+            if(this.bodyParts[delt]) {
+                const dy = this.basePositions[delt].pos.y - pivotY;
+                const dz = this.basePositions[delt].pos.z;
+                this.bodyParts[delt].mesh.position.y = pivotY - torsoDrop + (dy * Math.cos(torsoHinge) - dz * Math.sin(torsoHinge));
+                this.bodyParts[delt].mesh.position.z = (dy * Math.sin(torsoHinge) + dz * Math.cos(torsoHinge));
+                this.bodyParts[delt].mesh.rotation.x = this.basePositions[delt].rot.x + torsoHinge;
+            }
+
+            // Upper Arm (Bicep/Tricep) Pivot at Shoulder
+            const shoulderPivotY = this.bodyParts[delt] ? this.bodyParts[delt].mesh.position.y : this.basePositions[bicep].pos.y - torsoDrop;
+            const shoulderPivotZ = this.bodyParts[delt] ? this.bodyParts[delt].mesh.position.z : this.basePositions[bicep].pos.z;
+
+            // Total arm rotation = Torso Hinge + Shoulder Flexion + Specific offsets
+            let armPitch = torsoHinge + shoulderFlexion;
+
+            // Apply special overrides for animations that don't follow generic chain
+            if (this.animState === 'press') armPitch = torsoHinge - phase * 1.5;
+            if (this.animState === 'pullup') armPitch = torsoHinge - phase * 0.5 + 1.5;
+
+            ['bicep', 'tricep'].forEach(m => {
+                const part = `${m}_${side}`;
+                if(this.bodyParts[part]) {
+                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + armPitch;
+
+                    // Kinematic Link: bicep length ~1.8, pivot is top
+                    const length = 1.0;
+                    this.bodyParts[part].mesh.position.y = shoulderPivotY - length + (length * Math.cos(armPitch));
+                    this.bodyParts[part].mesh.position.z = shoulderPivotZ + (length * Math.sin(armPitch));
+                }
+            });
+
+            // Elbow Joint follows end of bicep
+            let elbowY = shoulderPivotY;
+            let elbowZ = shoulderPivotZ;
+            if(this.bodyParts[bicep]) {
+                const armLength = 1.8; // Derived from geometry creation
+                elbowY = shoulderPivotY - armLength * Math.cos(armPitch);
+                elbowZ = shoulderPivotZ + armLength * Math.sin(armPitch);
+                if(this.bodyParts[elbow]) {
+                    this.bodyParts[elbow].mesh.position.y = elbowY;
+                    this.bodyParts[elbow].mesh.position.z = elbowZ;
+                    this.bodyParts[elbow].mesh.rotation.x = armPitch;
+                }
+            }
+
+            // Forearm Pivot at Elbow
+            let forearmPitch = armPitch - elbowFlexion; // Negative flex bends up
+
+            if (this.animState === 'press') forearmPitch = armPitch + phase * 0.5; // compensate to keep hands over chest
+            if (this.animState === 'pullup') forearmPitch = armPitch + phase * 1.5;
+
+            if(this.bodyParts[forearm]) {
+                this.bodyParts[forearm].mesh.rotation.x = this.basePositions[forearm].rot.x + forearmPitch;
+                const faLength = 1.0; // half length
+                this.bodyParts[forearm].mesh.position.y = elbowY - faLength * Math.cos(forearmPitch);
+                this.bodyParts[forearm].mesh.position.z = elbowZ + faLength * Math.sin(forearmPitch);
+            }
+
+            // Hand follows end of forearm
+            if(this.bodyParts[forearm] && this.bodyParts[hand]) {
+                const faTotalLength = 2.0;
+                this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch);
+                this.bodyParts[hand].mesh.position.z = elbowZ + faTotalLength * Math.sin(forearmPitch);
+                this.bodyParts[hand].mesh.rotation.x = this.basePositions[hand].rot.x + forearmPitch;
+            }
+        };
+
+        processArm('l');
+        processArm('r');
+
+        // C) Legs (Pelvis -> Quad -> Knee -> Calf -> Foot)
+        const processLeg = (side, specificHipFlex, specificKneeFlex, strideZ) => {
+            const quad = `quad_${side}`;
+            const ham = `ham_${side}`;
+            const knee = `knee_${side}`;
+            const calf = `calf_${side}`;
+            const shin = `shin_${side}`;
+            const foot = `foot_${side}`;
+
+            // The pivot for the leg is the pelvis
+            // Pelvis: y=0.5. Knee: y=-3.8 -> Thigh length = 4.3
+            // Knee: y=-3.8. Foot: y=-7.2 -> Lower leg length = 3.4
+            const hipPivotY = this.basePositions['pelvis'].pos.y - torsoDrop;
+            const hipPivotZ = this.basePositions['pelvis'].pos.z;
+
+            // --- Thigh (Quad/Ham) ---
+            const thighLength = 4.3;
+            ['quad', 'ham'].forEach(m => {
+                const part = `${m}_${side}`;
+                if(this.bodyParts[part]) {
+                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - specificHipFlex;
+
+                    const localY = this.basePositions[part].pos.y - this.basePositions['pelvis'].pos.y;
+                    const localZ = this.basePositions[part].pos.z - this.basePositions['pelvis'].pos.z;
+
+                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(specificHipFlex) + localZ * Math.sin(specificHipFlex));
+                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
+                }
+            });
+
+            // --- Knee ---
+            let kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
+            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
+
+            if(this.bodyParts[knee]) {
+                this.bodyParts[knee].mesh.position.y = kneeY;
+                this.bodyParts[knee].mesh.position.z = kneeZ;
+                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - specificHipFlex;
+            }
+
+            // --- Lower Leg (Calf/Shin) ---
+            let lowerLegPitch = -specificHipFlex + specificKneeFlex;
+            const lowerLegLength = 3.4; // Distance from knee to ankle
+
+            ['calf', 'shin'].forEach(m => {
+                const part = `${m}_${side}`;
+                if(this.bodyParts[part]) {
+                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + lowerLegPitch;
+
+                    const localY = this.basePositions[part].pos.y - this.basePositions[knee].pos.y;
+                    const localZ = this.basePositions[part].pos.z - this.basePositions[knee].pos.z;
+
+                    this.bodyParts[part].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
+                    this.bodyParts[part].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
+                }
+            });
+
+            // --- Foot ---
+            if(this.bodyParts[foot]) {
+                const localY = this.basePositions[foot].pos.y - this.basePositions[knee].pos.y;
+                const localZ = this.basePositions[foot].pos.z - this.basePositions[knee].pos.z;
+
+                this.bodyParts[foot].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
+                this.bodyParts[foot].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
+
+                // Keep foot relatively flat to floor unless lunging back leg
+                this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
+            }
+        };
+
+        // Explicitly stride legs for lunge, else static Z
+        let strideZL = 0;
+        let strideZR = 0;
+        if (this.animState === 'lunge') {
+            strideZL = 1.2;
+            strideZR = -1.2;
+        }
+
+        processLeg('l', hipFlexionL, kneeFlexionL, strideZL);
+        processLeg('r', hipFlexionR, kneeFlexionR, strideZR);
+
+
+
+    }
+
+        // Ensure barbell is hidden when idle or plank
+        if (['idle', 'plank'].includes(this.animState)) {
+             if (this.barbell) this.barbell.visible = false;
+             if (this.pullupBar) this.pullupBar.visible = false;
+             if (this.dbL) this.dbL.visible = false;
+             if (this.dbR) this.dbR.visible = false;
+        }
+
+    }
+
+    playDictionaryExercise() {        // Ensure barbell is hidden when idle or plank
+        if (['idle', 'plank'].includes(this.animState)) {
+             if (this.barbell) this.barbell.visible = false;
+             if (this.pullupBar) this.pullupBar.visible = false;
+             if (this.dbL) this.dbL.visible = false;
+             if (this.dbR) this.dbR.visible = false;
+        }
+
+    }
+
+    playDictionaryExercise() {
+        if (!this.state.webglInitialized) this.initWebGL();
+
+        const dictSelect = document.getElementById('vis-dict-select');
+        const exType = dictSelect.value;
+        if (!exType) return;
+
+        // Reset the phase selector so they don't visually conflict
+        document.getElementById('vis-day-select').value = "";
+
+        // Reset all colors
+        Object.keys(this.bodyParts).forEach(p => {
+             this.bodyParts[p].mesh.material.color.setHex(0xd2b48c);
+             this.bodyParts[p].mesh.material.emissive.setHex(0x000000);
+        });
+
+        // Set the animation state
+        this.animState = exType;
+
+        // Set up the details panel manually
+        document.getElementById('vis-details').style.display = 'block';
+
+        let desc = "";
+        let equipment = "";
+
+        if (exType === 'squat') {
+            desc = "ISOLATING: Lower Body Mechanics | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Back Squat (Targets Quads/Glutes)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'lower_back', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'press') {
+            desc = "ISOLATING: Upper Body Push | INTENSITY: Moderate";
+            equipment = "<li><strong>Primary:</strong> Bench Press / Push-ups (Targets Pecs/Triceps/Front Delts)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['delt_l', 'delt_r', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'fullbody') {
+            desc = "ISOLATING: Full Kinetic Chain | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Thrusters / Clean and Press (Full Chain Engagement)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'pec_l', 'pec_r', 'tricep_l', 'tricep_r', 'lower_back', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+        } else if (exType === 'deadlift') {
+            desc = "ISOLATING: Posterior Chain | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Deadlift (Glutes, Hamstrings, Erector Spinae)</li>";
+
+            // Highlight
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['glute_l', 'glute_r', 'ham_l', 'ham_r', 'lower_back', 'traps_l', 'traps_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['quad_l', 'quad_r', 'lat_l', 'lat_r', 'abs_1l', 'abs_1r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+        } else if (exType === 'pullup') {
+            desc = "ISOLATING: Upper Body Pull | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Pull-up Bar (Targets Lats/Biceps)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['traps_l', 'traps_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'forearm_l', 'forearm_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'lunge') {
+            desc = "ISOLATING: Unilateral Lower Body | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Dumbbell Lunges (Targets Quads/Glutes/Stability)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['ham_l', 'ham_r', 'calf_l', 'calf_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'plank') {
+            desc = "ISOLATING: Core Stabilization | INTENSITY: Moderate";
+            equipment = "<li><strong>Primary:</strong> Bodyweight (Targets Rectus Abdominis/Core)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['delt_l', 'delt_r', 'pec_l', 'pec_r', 'quad_l', 'quad_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'overhead_press') {
+            desc = "ISOLATING: Shoulder Push | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Overhead Press (Targets Deltoids/Triceps)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['delt_l', 'delt_r', 'tricep_l', 'tricep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['traps_l', 'traps_r', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'row') {
+            desc = "ISOLATING: Horizontal Pull | INTENSITY: High";
+            equipment = "<li><strong>Primary:</strong> Barbell Bent Over Row (Targets Lats/Rhomboids)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['lat_l', 'lat_r', 'traps_l', 'traps_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['bicep_l', 'bicep_r', 'lower_back', 'ham_l', 'ham_r', 'glute_l', 'glute_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+
+        } else if (exType === 'curl') {
+            desc = "ISOLATING: Arm Isolation | INTENSITY: Low/Moderate";
+            equipment = "<li><strong>Primary:</strong> Dumbbell Bicep Curl (Targets Biceps Brachii)</li>";
+
+            const colors = { high: 0xef4444, mod: 0x3b82f6 };
+            ['bicep_l', 'bicep_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.high));
+            ['forearm_l', 'forearm_r', 'delt_l', 'delt_r'].forEach(p => this.bodyParts[p].mesh.material.color.setHex(colors.mod));
+        }
+
+        document.getElementById('vis-desc').innerText = desc;
+        document.getElementById('vis-equipment').innerHTML = equipment;
     },
 
     updateWebGLVisualizer() {
-        if (!this.state.webglInitialized) return;
+
+        if (!this.state.schedule || !this.state.webglInitialized) return;
 
         const select = document.getElementById('vis-day-select');
-        const exerciseId = select.value;
-        if (exerciseId === '') return;
-
-        if (!this.MovementMap) this.MovementMap = {};
-        if (!this.MovementMap['squat']) {
-            this.MovementMap['squat'] = { primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r'], synergists: ['ham_l', 'ham_r', 'lower_back', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'squat' };
-            this.MovementMap['press'] = { primary: ['pec_l', 'pec_r', 'tricep_l', 'tricep_r'], synergists: ['delt_l', 'delt_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r', 'abs_3l', 'abs_3r'], animation: 'press' };
-            this.MovementMap['fullbody'] = { primary: ['quad_l', 'quad_r', 'glute_l', 'glute_r', 'delt_l', 'delt_r', 'tricep_l', 'tricep_r'], synergists: ['ham_l', 'ham_r', 'lower_back', 'pec_l', 'pec_r', 'abs_1l', 'abs_1r'], animation: 'fullbody' };
-            this.MovementMap['idle'] = { primary: [], synergists: [], animation: 'idle' };
-        }
+        const dayIndex = select.value;
+        document.getElementById('vis-dict-select').value = '';
+        if (dayIndex === '') return;
 
         this.MovementMap['deadlift'] = { primary: ['ham_l', 'ham_r', 'glute_l', 'glute_r', 'lower_back'], synergists: ['quad_l', 'quad_r', 'traps_l', 'traps_r', 'lat_l', 'lat_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r'], animation: "deadlift" };
         this.MovementMap['pullup'] = { primary: ['lat_l', 'lat_r', 'bicep_l', 'bicep_r'], synergists: ['traps_l', 'traps_r', 'forearm_l', 'forearm_r', 'abs_1l', 'abs_1r', 'abs_2l', 'abs_2r'], animation: "pullup" };
@@ -1764,6 +1986,137 @@ const app = {
         } else {
             container.style.display = 'none';
         }
+    },
+
+
+    // --- JUICER MODULE ---
+
+    juicerDB: {
+        beetroot: { name: 'Beetroot', unitName: '1 Medium Beet', gPerUnit: 136, cals: 58, sugar: 9, ph: 5.5, vitA_mcg: 2, vitC_mg: 6.7, calc_mg: 22, iron_mg: 1.1, mag_mg: 31, pot_mg: 442, color: [138, 15, 61], benefits: ["Nitrates improve blood flow", "Liver support (Betaine)"], hazards: ["High in oxalates", "Beeturia (red urine)"] },
+        carrot: { name: 'Carrot', unitName: '1 Medium Carrot', gPerUnit: 61, cals: 25, sugar: 2.9, ph: 6.0, vitA_mcg: 509, vitC_mg: 3.6, calc_mg: 20, iron_mg: 0.18, mag_mg: 7, pot_mg: 195, color: [237, 145, 33], benefits: ["High Beta-Carotene (Vision)", "Antioxidant rich"], hazards: ["Carotenemia (orange skin) in extreme excess"] },
+        celery: { name: 'Celery', unitName: '1 Stalk', gPerUnit: 40, cals: 6, sugar: 0.5, ph: 5.8, vitA_mcg: 18, vitC_mg: 1.2, calc_mg: 16, iron_mg: 0.08, mag_mg: 4, pot_mg: 104, color: [168, 228, 160], benefits: ["Hydration", "Apigenin (Anti-inflammatory)"], hazards: ["High sodium relative to other veg"] },
+        spinach: { name: 'Spinach', unitName: '1 Cup Raw', gPerUnit: 30, cals: 7, sugar: 0.1, ph: 6.5, vitA_mcg: 141, vitC_mg: 8.4, calc_mg: 30, iron_mg: 0.81, mag_mg: 24, pot_mg: 167, color: [50, 100, 30], benefits: ["Folate", "Vitamin K"], hazards: ["High oxalates (binds calcium)"] },
+        kale: { name: 'Kale', unitName: '1 Cup Raw', gPerUnit: 21, cals: 8, sugar: 0.2, ph: 6.6, vitA_mcg: 53, vitC_mg: 19.6, calc_mg: 53, iron_mg: 0.3, mag_mg: 7, pot_mg: 73, color: [40, 80, 40], benefits: ["Lutein/Zeaxanthin", "High Vitamin K/C"], hazards: ["Goitrogens (thyroid interference raw)"] },
+        cucumber: { name: 'Cucumber', unitName: '1/2 Medium', gPerUnit: 100, cals: 15, sugar: 1.7, ph: 5.5, vitA_mcg: 5, vitC_mg: 2.8, calc_mg: 16, iron_mg: 0.28, mag_mg: 13, pot_mg: 147, color: [152, 251, 152], benefits: ["Hydration", "Silica (skin health)"], hazards: [] },
+        potato: { name: 'Sweet Potato', unitName: '1 Medium', gPerUnit: 130, cals: 112, sugar: 5.4, ph: 5.4, vitA_mcg: 961, vitC_mg: 3.1, calc_mg: 39, iron_mg: 0.8, mag_mg: 33, pot_mg: 438, color: [224, 141, 60], benefits: ["Complex carbs", "Massive Vitamin A"], hazards: ["Must be cooked/steamed if juicing"] },
+        apple: { name: 'Apple', unitName: '1 Medium', gPerUnit: 182, cals: 95, sugar: 18.9, ph: 3.5, vitA_mcg: 5, vitC_mg: 8.4, calc_mg: 11, iron_mg: 0.2, mag_mg: 9, pot_mg: 195, color: [230, 230, 180], benefits: ["Quercetin", "Pectin (gut health)"], hazards: ["High fructose"] },
+        orange: { name: 'Orange', unitName: '1 Medium', gPerUnit: 131, cals: 62, sugar: 12.2, ph: 3.9, vitA_mcg: 15, vitC_mg: 69.7, calc_mg: 52, iron_mg: 0.13, mag_mg: 13, pot_mg: 237, color: [255, 165, 0], benefits: ["High Vitamin C", "Citric acid (prevents stones)"], hazards: ["High acidity", "Sugar load if skin removed"] },
+        pineapple: { name: 'Pineapple', unitName: '1 Cup Chunks', gPerUnit: 165, cals: 82, sugar: 16.3, ph: 3.4, vitA_mcg: 5, vitC_mg: 78.9, calc_mg: 21, iron_mg: 0.48, mag_mg: 20, pot_mg: 180, color: [255, 235, 100], benefits: ["Bromelain (digestion)", "High Vitamin C"], hazards: ["Highly acidic", "Can irritate oral mucosa"] },
+        lemon: { name: 'Lemon', unitName: '1/2 Lemon Juice', gPerUnit: 24, cals: 7, sugar: 0.6, ph: 2.2, vitA_mcg: 0, vitC_mg: 9.3, calc_mg: 2, iron_mg: 0.02, mag_mg: 1, pot_mg: 25, color: [255, 255, 150], benefits: ["Liver flushing", "Alkalizing post-digestion"], hazards: ["Enamel erosion (highly acidic)"] },
+        ginger: { name: 'Ginger', unitName: '1 Inch Root', gPerUnit: 24, cals: 19, sugar: 0.4, ph: 5.8, vitA_mcg: 0, vitC_mg: 1.2, calc_mg: 4, iron_mg: 0.14, mag_mg: 10, pot_mg: 100, color: [220, 200, 150], benefits: ["Gingerol (anti-nausea/anti-inflammatory)", "Gastric motility"], hazards: ["Spicy/Heartburn in excess"] },
+        mint: { name: 'Mint', unitName: '10 Leaves', gPerUnit: 2, cals: 1, sugar: 0, ph: 6.5, vitA_mcg: 4, vitC_mg: 0.6, calc_mg: 5, iron_mg: 0.1, mag_mg: 1, pot_mg: 11, color: [20, 150, 50], benefits: ["Menthol (digestion)", "Flavor enhancer"], hazards: [] }
+    },
+
+    syncJuicerInput(item, changed) {
+        const db = this.juicerDB[item];
+        const elUnit = document.getElementById(`ing-${item}`);
+        const elG = document.getElementById(`ing-${item}-g`);
+
+        if (changed === 'unit') {
+            const units = parseFloat(elUnit.value) || 0;
+            if (units === 0) elG.value = '';
+            else elG.value = Math.round(units * db.gPerUnit);
+        } else {
+            const g = parseFloat(elG.value) || 0;
+            if (g === 0) elUnit.value = '';
+            else elUnit.value = (g / db.gPerUnit).toFixed(1);
+        }
+    },
+
+    calculateJuice() {
+        let totalStats = {
+            cals: 0, sugar: 0, vitA: 0, vitC: 0, calc: 0, iron: 0, mag: 0, pot: 0,
+            weight: 0, totalPh: 0, ingredients: []
+        };
+        let colorSum = [0, 0, 0];
+        let benefits = new Set();
+        let hazards = new Set();
+
+        for (const [key, db] of Object.entries(this.juicerDB)) {
+            const g = parseFloat(document.getElementById(`ing-${key}-g`)?.value) || 0;
+            if (g > 0) {
+                const ratio = g / 100; // Database values are per 100g? Wait, I made them per unit.
+                // Let's normalize DB to per gram for math.
+                const perGram = {
+                    cals: db.cals / db.gPerUnit,
+                    sugar: db.sugar / db.gPerUnit,
+                    vitA: db.vitA_mcg / db.gPerUnit,
+                    vitC: db.vitC_mg / db.gPerUnit,
+                    calc: db.calc_mg / db.gPerUnit,
+                    iron: db.iron_mg / db.gPerUnit,
+                    mag: db.mag_mg / db.gPerUnit,
+                    pot: db.pot_mg / db.gPerUnit
+                };
+
+                totalStats.cals += perGram.cals * g;
+                totalStats.sugar += perGram.sugar * g;
+                totalStats.vitA += perGram.vitA * g;
+                totalStats.vitC += perGram.vitC * g;
+                totalStats.calc += perGram.calc * g;
+                totalStats.iron += perGram.iron * g;
+                totalStats.mag += perGram.mag * g;
+                totalStats.pot += perGram.pot * g;
+
+                // pH is logarithmic, but we'll do a weighted average by weight for simplicity in this demo.
+                totalStats.totalPh += db.ph * g;
+                totalStats.weight += g;
+
+                // Color mixing (weighted)
+                colorSum[0] += db.color[0] * g;
+                colorSum[1] += db.color[1] * g;
+                colorSum[2] += db.color[2] * g;
+
+                db.benefits.forEach(b => benefits.add(b));
+                db.hazards.forEach(h => hazards.add(h));
+            }
+        }
+
+        const outCard = document.getElementById('juicer-analysis-card');
+        const emptyState = document.getElementById('juicer-empty-state');
+
+        if (totalStats.weight === 0) {
+            outCard.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        outCard.style.display = 'block';
+
+        const estPh = (totalStats.totalPh / totalStats.weight).toFixed(1);
+
+        document.getElementById('juice-cals').innerText = Math.round(totalStats.cals);
+        document.getElementById('juice-sugar').innerText = totalStats.sugar.toFixed(1) + 'g';
+        document.getElementById('juice-ph').innerText = estPh;
+
+        const r = Math.round(colorSum[0] / totalStats.weight);
+        const g = Math.round(colorSum[1] / totalStats.weight);
+        const b = Math.round(colorSum[2] / totalStats.weight);
+        document.getElementById('juice-color-swatch').style.background = `rgb(${r},${g},${b})`;
+
+        // Populate Benefits/Hazards
+        const benEl = document.getElementById('juice-benefits');
+        benEl.innerHTML = '';
+        benefits.forEach(b => benEl.innerHTML += `<li>${b}</li>`);
+        if(benefits.size === 0) benEl.innerHTML = "<li>No specific clinical benefits identified.</li>";
+
+        const hazEl = document.getElementById('juice-hazards');
+        hazEl.innerHTML = '';
+        hazards.forEach(h => hazEl.innerHTML += `<li>${h}</li>`);
+        if (estPh < 4.0) hazEl.innerHTML += "<li><strong>High Acidity:</strong> May cause enamel erosion or heartburn. Dilute or consume quickly.</li>";
+        if (totalStats.sugar > 40) hazEl.innerHTML += "<li><strong>High Sugar Load:</strong> May spike insulin. Consider adding fiber/greens.</li>";
+        if(hazEl.innerHTML === '') hazEl.innerHTML = "<li>No major hazards.</li>";
+
+        // Macros vs RDA (Estimates for standard adult male)
+        const table = document.getElementById('juice-nutrient-table');
+        table.innerHTML = `
+            <tr><td>Vitamin A</td><td>${Math.round(totalStats.vitA)} mcg</td><td>${Math.round((totalStats.vitA / 900) * 100)}%</td></tr>
+            <tr><td>Vitamin C</td><td>${Math.round(totalStats.vitC)} mg</td><td>${Math.round((totalStats.vitC / 90) * 100)}%</td></tr>
+            <tr><td>Calcium</td><td>${Math.round(totalStats.calc)} mg</td><td>${Math.round((totalStats.calc / 1000) * 100)}%</td></tr>
+            <tr><td>Iron</td><td>${totalStats.iron.toFixed(1)} mg</td><td>${Math.round((totalStats.iron / 8) * 100)}%</td></tr>
+            <tr><td>Magnesium</td><td>${Math.round(totalStats.mag)} mg</td><td>${Math.round((totalStats.mag / 400) * 100)}%</td></tr>
+            <tr><td>Potassium</td><td>${Math.round(totalStats.pot)} mg</td><td>${Math.round((totalStats.pot / 3400) * 100)}%</td></tr>
+        `;
     },
 
     translateJuice() {
