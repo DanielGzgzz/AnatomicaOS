@@ -1,0 +1,17 @@
+The user claims the 3D animations are "sloppy" and need to be "perfect to mimic human".
+
+Current Kinematic Architecture:
+1. Torso: Everything pivots around `pelvis.pos.y`. The code just adds a naive rotation math to elements.
+2. Arms: Shoulder to elbow (bicep) is length 1.8. Elbow to Hand is length 2.0. The elbow pivot drops vertically with the shoulder, then rotates based on armPitch.
+3. Legs: Uses fixed lengths `thighLength = 4.3` and `lowerLegLength = 3.4`.
+
+Why it looks sloppy:
+- NO INVERSE KINEMATICS (IK) FOR THE FEET! The math just drives the knee and foot via angles (Forward Kinematics), which means when the character squats, the feet penetrate the floor or hover in the air instead of staying locked to the ground! This is a massive visual flaw for exercises like squats or deadlifts.
+- The spine is rigid. Torso hinge is a single pivot at the pelvis, ignoring lumbar/thoracic curvature.
+- The arms are stiff. A pullup pulls the elbows straight down relative to the torso, ignoring shoulder abduction (flaring elbows out).
+- No secondary motion (head tracking, chest expansion).
+
+Goal:
+1. Implement a hybrid IK system for the legs: Keep the feet planted on the floor (Y = base position), and calculate knee position using triangulation.
+2. Add elbow flaring (Z-axis rotation) for pullups, rows, and presses.
+3. Add a spinal curve (head stays looking forward during deadlifts/squats instead of staring at the floor).

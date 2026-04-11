@@ -775,7 +775,9 @@ Object.assign(window.app, {
         let t = {
             torsoDrop: 0,
             torsoHinge: 0,
+            neckExtension: 0, // Keep head up during hinge
             shoulderFlexion: 0,
+            shoulderAbduction: 0, // Flare elbows out
             elbowFlexion: 0,
             hipFlexionL: 0,
             kneeFlexionL: 0,
@@ -815,6 +817,7 @@ Object.assign(window.app, {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.shoulderFlexion = phase * 1.2; // Push forward
+            t.shoulderAbduction = 0.5 - phase * 0.5; // Flare elbows at bottom
             t.elbowFlexion = -phase * 1.5; // Extend arm
         } else if (this.animState === 'fullbody') {
             phase = (Math.sin(this.time * 2.0) + 1) / 2;
@@ -830,11 +833,13 @@ Object.assign(window.app, {
             t.torsoHinge = phase * 1.2; // Hinge forward
             t.hipFlexionL = t.hipFlexionR = phase * 1.2; // hinge requires massive hip flexion
             t.kneeFlexionL = t.kneeFlexionR = phase * 0.2; // straightish legs
-            t.shoulderFlexion = -t.torsoHinge; // Arms hang straight down (counter-rotate)
+            t.shoulderFlexion = -t.torsoHinge; // Arms hang straight down
+            t.neckExtension = -t.torsoHinge; // Look forward while hinging
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
-            t.shoulderFlexion = phase * -1.5; // Pull elbows down relative to torso
+            t.shoulderFlexion = phase * -1.0;
+            t.shoulderAbduction = 1.0; // Wide grip pullup flare
             t.elbowFlexion = phase * 2.0; // Bend elbows
         } else if (this.animState === 'lunge') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
@@ -852,6 +857,7 @@ Object.assign(window.app, {
         } else if (this.animState === 'overhead_press') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.shoulderFlexion = phase * -2.8; // Press straight up
+            t.shoulderAbduction = 1.0 - phase; // Flare elbows at bottom
             t.elbowFlexion = phase * -1.0; // Straighten elbows
         } else if (this.animState === 'row') {
             orientation = 'horizontal';
@@ -860,6 +866,8 @@ Object.assign(window.app, {
             t.hipFlexionL = t.hipFlexionR = 0.2;
             t.kneeFlexionL = t.kneeFlexionR = 0.2;
             t.shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
+            t.shoulderAbduction = 0.8; // Flare for row
+            t.neckExtension = -t.torsoHinge; // Look forward
             t.elbowFlexion = phase * 1.8; // Bend elbows
         } else if (this.animState === 'curl') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
@@ -874,7 +882,9 @@ Object.assign(window.app, {
 
         this.jointStates.torsoDrop = lerp(this.jointStates.torsoDrop, t.torsoDrop, lerpSpeed);
         this.jointStates.torsoHinge = lerp(this.jointStates.torsoHinge, t.torsoHinge, lerpSpeed);
+        this.jointStates.neckExtension = lerp(this.jointStates.neckExtension || 0, t.neckExtension, lerpSpeed);
         this.jointStates.shoulderFlexion = lerp(this.jointStates.shoulderFlexion, t.shoulderFlexion, lerpSpeed);
+        this.jointStates.shoulderAbduction = lerp(this.jointStates.shoulderAbduction || 0, t.shoulderAbduction, lerpSpeed);
         this.jointStates.elbowFlexion = lerp(this.jointStates.elbowFlexion, t.elbowFlexion, lerpSpeed);
         this.jointStates.hipFlexionL = lerp(this.jointStates.hipFlexionL, t.hipFlexionL, lerpSpeed);
         this.jointStates.kneeFlexionL = lerp(this.jointStates.kneeFlexionL, t.kneeFlexionL, lerpSpeed);
@@ -894,7 +904,9 @@ Object.assign(window.app, {
         // Alias for the FK math block to use cleanly
         const torsoDrop = this.jointStates.torsoDrop;
         const torsoHinge = this.jointStates.torsoHinge;
+        const neckExtension = this.jointStates.neckExtension;
         const shoulderFlexion = this.jointStates.shoulderFlexion;
+        const shoulderAbduction = this.jointStates.shoulderAbduction;
         const elbowFlexion = this.jointStates.elbowFlexion;
         const hipFlexionL = this.jointStates.hipFlexionL;
         const kneeFlexionL = this.jointStates.kneeFlexionL;
@@ -954,6 +966,7 @@ Object.assign(window.app, {
 
             // Total arm rotation = Torso Hinge + Shoulder Flexion + Specific offsets
             let armPitch = torsoHinge + shoulderFlexion;
+            let armYaw = side === 'l' ? shoulderAbduction : -shoulderAbduction; // Flare elbows out to sides!
 
             // Apply special overrides for animations that don't follow generic chain
             if (this.animState === 'press') armPitch = torsoHinge - phase * 1.5;
@@ -963,25 +976,34 @@ Object.assign(window.app, {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
                     this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + armPitch;
+                    this.bodyParts[part].mesh.rotation.z = this.basePositions[part].rot.z + armYaw;
 
                     // Kinematic Link: bicep length ~1.8, pivot is top
                     const length = 1.0;
-                    this.bodyParts[part].mesh.position.y = shoulderPivotY - length + (length * Math.cos(armPitch));
-                    this.bodyParts[part].mesh.position.z = shoulderPivotZ + (length * Math.sin(armPitch));
+                    // We must factor in Yaw (abduction) for the x and y offsets now!
+                    this.bodyParts[part].mesh.position.x = this.basePositions[bicep].pos.x + length * Math.sin(-armYaw);
+                    this.bodyParts[part].mesh.position.y = shoulderPivotY - length * Math.cos(armPitch) * Math.cos(armYaw);
+                    this.bodyParts[part].mesh.position.z = shoulderPivotZ + length * Math.sin(armPitch);
                 }
             });
 
             // Elbow Joint follows end of bicep
+            let elbowX = this.basePositions[bicep].pos.x;
             let elbowY = shoulderPivotY;
             let elbowZ = shoulderPivotZ;
+
             if(this.bodyParts[bicep]) {
                 const armLength = 1.8; // Derived from geometry creation
-                elbowY = shoulderPivotY - armLength * Math.cos(armPitch);
+                elbowX = this.basePositions[bicep].pos.x + armLength * Math.sin(-armYaw);
+                elbowY = shoulderPivotY - armLength * Math.cos(armPitch) * Math.cos(armYaw);
                 elbowZ = shoulderPivotZ + armLength * Math.sin(armPitch);
+
                 if(this.bodyParts[elbow]) {
+                    this.bodyParts[elbow].mesh.position.x = elbowX;
                     this.bodyParts[elbow].mesh.position.y = elbowY;
                     this.bodyParts[elbow].mesh.position.z = elbowZ;
                     this.bodyParts[elbow].mesh.rotation.x = armPitch;
+                    this.bodyParts[elbow].mesh.rotation.z = armYaw;
                 }
             }
 
@@ -993,17 +1015,21 @@ Object.assign(window.app, {
 
             if(this.bodyParts[forearm]) {
                 this.bodyParts[forearm].mesh.rotation.x = this.basePositions[forearm].rot.x + forearmPitch;
+                this.bodyParts[forearm].mesh.rotation.z = this.basePositions[forearm].rot.z + armYaw;
                 const faLength = 1.0; // half length
-                this.bodyParts[forearm].mesh.position.y = elbowY - faLength * Math.cos(forearmPitch);
+                this.bodyParts[forearm].mesh.position.x = elbowX + faLength * Math.sin(-armYaw);
+                this.bodyParts[forearm].mesh.position.y = elbowY - faLength * Math.cos(forearmPitch) * Math.cos(armYaw);
                 this.bodyParts[forearm].mesh.position.z = elbowZ + faLength * Math.sin(forearmPitch);
             }
 
             // Hand follows end of forearm
             if(this.bodyParts[forearm] && this.bodyParts[hand]) {
                 const faTotalLength = 2.0;
-                this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch);
+                this.bodyParts[hand].mesh.position.x = elbowX + faTotalLength * Math.sin(-armYaw);
+                this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch) * Math.cos(armYaw);
                 this.bodyParts[hand].mesh.position.z = elbowZ + faTotalLength * Math.sin(forearmPitch);
                 this.bodyParts[hand].mesh.rotation.x = this.basePositions[hand].rot.x + forearmPitch;
+                this.bodyParts[hand].mesh.rotation.z = this.basePositions[hand].rot.z + armYaw;
             }
         };
 
@@ -1019,40 +1045,62 @@ Object.assign(window.app, {
             const shin = `shin_${side}`;
             const foot = `foot_${side}`;
 
-            // The pivot for the leg is the pelvis
-            // Pelvis: y=0.5. Knee: y=-3.8 -> Thigh length = 4.3
-            // Knee: y=-3.8. Foot: y=-7.2 -> Lower leg length = 3.4
             const hipPivotY = this.basePositions['pelvis'].pos.y - torsoDrop;
             const hipPivotZ = this.basePositions['pelvis'].pos.z;
 
-            // --- Thigh (Quad/Ham) ---
+            // To mimic human movement perfectly and prevent sliding through the floor,
+            // we use the torsoDrop to dynamically compute Inverse Kinematics (IK) for the knees
+            // so the feet stay planted exactly on the floor (Y = -7.2) whenever we are upright.
             const thighLength = 4.3;
+            const lowerLegLength = 3.4;
+
+            let finalHipFlex = specificHipFlex;
+            let finalKneeFlex = specificKneeFlex;
+
+            // Apply IK Constraint for Squat, Deadlift, Thruster to keep feet locked to floor
+            if (['squat', 'deadlift', 'fullbody'].includes(this.animState)) {
+                // Distance from dropped hip to floor
+                const distanceToFloor = (hipPivotY - (-7.2));
+                // Clamp to prevent math errors if torso drops below leg length
+                const maxReach = thighLength + lowerLegLength;
+                const d = Math.max(0.1, Math.min(distanceToFloor, maxReach));
+
+                // Law of Cosines to find knee bend angle required to touch the floor
+                // c^2 = a^2 + b^2 - 2ab * cos(C)
+                const cosKnee = (thighLength*thighLength + lowerLegLength*lowerLegLength - d*d) / (2 * thighLength * lowerLegLength);
+                finalKneeFlex = Math.acos(Math.max(-1, Math.min(1, cosKnee)));
+
+                // Angle of the hip to point the knee forward
+                const alpha = Math.acos((thighLength*thighLength + d*d - lowerLegLength*lowerLegLength) / (2 * thighLength * d));
+                finalHipFlex = (alpha || 0) + (this.animState === 'deadlift' ? torsoHinge : 0.2);
+            }
+
+            // --- Thigh (Quad/Ham) ---
             ['quad', 'ham'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
-                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - specificHipFlex;
+                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - finalHipFlex;
 
                     const localY = this.basePositions[part].pos.y - this.basePositions['pelvis'].pos.y;
                     const localZ = this.basePositions[part].pos.z - this.basePositions['pelvis'].pos.z;
 
-                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(specificHipFlex) + localZ * Math.sin(specificHipFlex));
-                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
+                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(finalHipFlex) + localZ * Math.sin(finalHipFlex));
+                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(finalHipFlex) + localZ * Math.cos(finalHipFlex));
                 }
             });
 
             // --- Knee ---
-            let kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
-            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
+            let kneeY = hipPivotY - thighLength * Math.cos(finalHipFlex);
+            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(finalHipFlex);
 
             if(this.bodyParts[knee]) {
                 this.bodyParts[knee].mesh.position.y = kneeY;
                 this.bodyParts[knee].mesh.position.z = kneeZ;
-                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - specificHipFlex;
+                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - finalHipFlex;
             }
 
             // --- Lower Leg (Calf/Shin) ---
-            let lowerLegPitch = -specificHipFlex + specificKneeFlex;
-            const lowerLegLength = 3.4; // Distance from knee to ankle
+            let lowerLegPitch = -finalHipFlex + finalKneeFlex;
 
             ['calf', 'shin'].forEach(m => {
                 const part = `${m}_${side}`;
@@ -1075,8 +1123,13 @@ Object.assign(window.app, {
                 this.bodyParts[foot].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
                 this.bodyParts[foot].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
 
-                // Keep foot relatively flat to floor unless lunging back leg
-                this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
+                // Keep foot flat relative to ground (override pitch)
+                if (['squat', 'deadlift', 'fullbody'].includes(this.animState)) {
+                    this.bodyParts[foot].mesh.rotation.x = 0;
+                    this.bodyParts[foot].mesh.position.y = -7.2; // absolute lock to floor
+                } else {
+                    this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
+                }
             }
         };
 
