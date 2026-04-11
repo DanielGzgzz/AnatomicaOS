@@ -812,13 +812,16 @@ Object.assign(window.app, {
             t.torsoDrop = phase * 2.0;
             t.hipFlexionL = t.hipFlexionR = phase * 0.8;
             t.kneeFlexionL = t.kneeFlexionR = phase * 1.0;
+            t.shoulderFlexion = -2.5; // Reach back to grab barbell on shoulders
+            t.elbowFlexion = 1.5; // Bend arms to hold bar
+            t.shoulderAbduction = 0.8; // Flare elbows out
 
         } else if (this.animState === 'press') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            t.shoulderFlexion = phase * 1.2; // Push forward
+            t.shoulderFlexion = -phase * 1.5; // Push UP (forward relative to chest)
             t.shoulderAbduction = 0.5 - phase * 0.5; // Flare elbows at bottom
-            t.elbowFlexion = -phase * 1.5; // Extend arm
+            t.elbowFlexion = phase * 1.5; // Extend arm
         } else if (this.animState === 'fullbody') {
             phase = (Math.sin(this.time * 2.0) + 1) / 2;
             t.torsoDrop = phase * 2.0;
@@ -832,15 +835,15 @@ Object.assign(window.app, {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoHinge = phase * 1.2; // Hinge forward
             t.hipFlexionL = t.hipFlexionR = phase * 1.2; // hinge requires massive hip flexion
-            t.kneeFlexionL = t.kneeFlexionR = phase * 0.2; // straightish legs
+            t.kneeFlexionL = t.kneeFlexionR = phase * 0.4; // slight knee bend for deadlift
             t.shoulderFlexion = -t.torsoHinge; // Arms hang straight down
             t.neckExtension = -t.torsoHinge; // Look forward while hinging
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
-            t.shoulderFlexion = phase * -1.0;
-            t.shoulderAbduction = 1.0; // Wide grip pullup flare
-            t.elbowFlexion = phase * 2.0; // Bend elbows
+            t.torsoDrop = phase * -3.5; // Pull UP more
+            t.shoulderFlexion = 2.5 - phase * 2.0; // Start with arms way up (2.5), pull down
+            t.shoulderAbduction = 0.5 + phase * 0.5; // Wide grip flare
+            t.elbowFlexion = phase * 2.5; // Bend elbows hard
         } else if (this.animState === 'lunge') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * 1.8;
@@ -851,9 +854,11 @@ Object.assign(window.app, {
             t.kneeFlexionR = phase * 1.2;
         } else if (this.animState === 'plank') {
             orientation = 'horizontal';
-            t.torsoHinge = Math.PI / 2; // Flat
-            t.torsoDrop = 5.0; // Down to ground
-            t.shoulderFlexion = Math.PI / 2; // Arms straight down
+            t.torsoHinge = 0; // The group is already rotated horizontally, don't double rotate the torso!
+            t.torsoDrop = 0; // Group Y handles ground drop
+            t.shoulderFlexion = -Math.PI / 2; // Arms straight down to support body
+            t.elbowFlexion = -Math.PI / 2; // Bend elbows for forearm plank
+            t.shoulderAbduction = 0.2;
         } else if (this.animState === 'overhead_press') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.shoulderFlexion = phase * -2.8; // Press straight up
@@ -872,7 +877,7 @@ Object.assign(window.app, {
         } else if (this.animState === 'curl') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.shoulderFlexion = phase * -0.2; // slight shift
-            t.elbowFlexion = phase * 2.0; // Curl forearm up
+            t.elbowFlexion = -phase * 2.2; // Curl forearm UP/FORWARD (negative flex bends up towards shoulder)
         }
 
         // --- 4.2 LERP Engine (Smooth transitions across exercise changes) ---
@@ -918,7 +923,7 @@ Object.assign(window.app, {
         // --- 5. Forward Kinematics Application ---
 
         // A) Torso
-        const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back', 'pelvis'];
+        const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back', 'pelvis', 'glute_l', 'glute_r'];
 
         // Pivot point for hinge is lower back / pelvis
         const pivotY = this.basePositions['pelvis'].pos.y;
@@ -978,12 +983,11 @@ Object.assign(window.app, {
                     this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + armPitch;
                     this.bodyParts[part].mesh.rotation.z = this.basePositions[part].rot.z + armYaw;
 
-                    // Kinematic Link: bicep length ~1.8, pivot is top
-                    const length = 1.0;
-                    // We must factor in Yaw (abduction) for the x and y offsets now!
+                    // Kinematic Link: bicep length 1.8, pivot is top
+                    const length = 0.9; // Half length of bicep cylinder
                     this.bodyParts[part].mesh.position.x = this.basePositions[bicep].pos.x + length * Math.sin(-armYaw);
                     this.bodyParts[part].mesh.position.y = shoulderPivotY - length * Math.cos(armPitch) * Math.cos(armYaw);
-                    this.bodyParts[part].mesh.position.z = shoulderPivotZ + length * Math.sin(armPitch);
+                    this.bodyParts[part].mesh.position.z = shoulderPivotZ - length * Math.sin(armPitch);
                 }
             });
 
@@ -996,7 +1000,7 @@ Object.assign(window.app, {
                 const armLength = 1.8; // Derived from geometry creation
                 elbowX = this.basePositions[bicep].pos.x + armLength * Math.sin(-armYaw);
                 elbowY = shoulderPivotY - armLength * Math.cos(armPitch) * Math.cos(armYaw);
-                elbowZ = shoulderPivotZ + armLength * Math.sin(armPitch);
+                elbowZ = shoulderPivotZ - armLength * Math.sin(armPitch);
 
                 if(this.bodyParts[elbow]) {
                     this.bodyParts[elbow].mesh.position.x = elbowX;
@@ -1019,7 +1023,7 @@ Object.assign(window.app, {
                 const faLength = 1.0; // half length
                 this.bodyParts[forearm].mesh.position.x = elbowX + faLength * Math.sin(-armYaw);
                 this.bodyParts[forearm].mesh.position.y = elbowY - faLength * Math.cos(forearmPitch) * Math.cos(armYaw);
-                this.bodyParts[forearm].mesh.position.z = elbowZ + faLength * Math.sin(forearmPitch);
+                this.bodyParts[forearm].mesh.position.z = elbowZ - faLength * Math.sin(forearmPitch);
             }
 
             // Hand follows end of forearm
@@ -1027,7 +1031,7 @@ Object.assign(window.app, {
                 const faTotalLength = 2.0;
                 this.bodyParts[hand].mesh.position.x = elbowX + faTotalLength * Math.sin(-armYaw);
                 this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch) * Math.cos(armYaw);
-                this.bodyParts[hand].mesh.position.z = elbowZ + faTotalLength * Math.sin(forearmPitch);
+                this.bodyParts[hand].mesh.position.z = elbowZ - faTotalLength * Math.sin(forearmPitch);
                 this.bodyParts[hand].mesh.rotation.x = this.basePositions[hand].rot.x + forearmPitch;
                 this.bodyParts[hand].mesh.rotation.z = this.basePositions[hand].rot.z + armYaw;
             }
@@ -1071,8 +1075,18 @@ Object.assign(window.app, {
                 finalKneeFlex = Math.acos(Math.max(-1, Math.min(1, cosKnee)));
 
                 // Angle of the hip to point the knee forward
-                const alpha = Math.acos((thighLength*thighLength + d*d - lowerLegLength*lowerLegLength) / (2 * thighLength * d));
-                finalHipFlex = (alpha || 0) + (this.animState === 'deadlift' ? torsoHinge : 0.2);
+                const alpha = Math.acos(Math.max(-1, Math.min(1, (thighLength*thighLength + d*d - lowerLegLength*lowerLegLength) / (2 * thighLength * d))));
+
+                // For squats, the hip flexes deeply.
+                // For deadlifts, the hip flex is mainly driven by the torso hinge.
+                if (this.animState === 'deadlift') {
+                    finalHipFlex = (alpha || 0) * 0.5 + torsoHinge * 0.8;
+                } else if (this.animState === 'fullbody') {
+                    finalHipFlex = (alpha || 0) + 0.3;
+                } else {
+                    // Squat
+                    finalHipFlex = (alpha || 0) + 0.5;
+                }
             }
 
             // --- Thigh (Quad/Ham) ---
