@@ -1,6 +1,23 @@
 window.app = window.app || {};
 Object.assign(window.app, {
     initWebGL() {
+        this.clock = new THREE.Clock();
+        this.time = 0;
+        this.MovementMap = {
+            idle: { primary: [], synergists: [] },
+            squat: { primary: ['quads', 'glutes'], synergists: ['hamstrings', 'calves', 'core'] },
+            bench: { primary: ['chest', 'frontDelts'], synergists: ['triceps'] },
+            deadlift: { primary: ['hamstrings', 'glutes', 'lowerBack'], synergists: ['quads', 'lats', 'traps'] },
+            pullup: { primary: ['lats', 'biceps'], synergists: ['rearDelts', 'forearms'] },
+            lunge: { primary: ['quads', 'glutes'], synergists: ['hamstrings', 'calves'] },
+            plank: { primary: ['core'], synergists: ['shoulders', 'chest'] },
+            press: { primary: ['frontDelts', 'triceps'], synergists: ['upperChest', 'core'] },
+            row: { primary: ['lats', 'rhomboids'], synergists: ['biceps', 'rearDelts'] },
+            curl: { primary: ['biceps'], synergists: ['forearms'] },
+            crunch: { primary: ['core'], synergists: [] },
+            calf_raise: { primary: ['calves'], synergists: [] },
+            leg_extension: { primary: ['quads'], synergists: [] }
+        };
         if (this.state.webglInitialized) return;
 
         const container = document.getElementById('webgl-container');
