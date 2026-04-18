@@ -1,23 +1,6 @@
 window.app = window.app || {};
 Object.assign(window.app, {
     initWebGL() {
-        this.clock = new THREE.Clock();
-        this.time = 0;
-        this.MovementMap = {
-            idle: { primary: [], synergists: [] },
-            squat: { primary: ['quads', 'glutes'], synergists: ['hamstrings', 'calves', 'core'] },
-            bench: { primary: ['chest', 'frontDelts'], synergists: ['triceps'] },
-            deadlift: { primary: ['hamstrings', 'glutes', 'lowerBack'], synergists: ['quads', 'lats', 'traps'] },
-            pullup: { primary: ['lats', 'biceps'], synergists: ['rearDelts', 'forearms'] },
-            lunge: { primary: ['quads', 'glutes'], synergists: ['hamstrings', 'calves'] },
-            plank: { primary: ['core'], synergists: ['shoulders', 'chest'] },
-            press: { primary: ['frontDelts', 'triceps'], synergists: ['upperChest', 'core'] },
-            row: { primary: ['lats', 'rhomboids'], synergists: ['biceps', 'rearDelts'] },
-            curl: { primary: ['biceps'], synergists: ['forearms'] },
-            crunch: { primary: ['core'], synergists: [] },
-            calf_raise: { primary: ['calves'], synergists: [] },
-            leg_extension: { primary: ['quads'], synergists: [] }
-        };
         if (this.state.webglInitialized) return;
 
         const container = document.getElementById('webgl-container');
@@ -449,9 +432,7 @@ Object.assign(window.app, {
             hipFlexionL: 0, kneeFlexionL: 0,
             hipFlexionR: 0, kneeFlexionR: 0,
             groupRotX: 0, groupPosY: 0, groupPosZ: 0,
-            wristBend: 0, forearmTwist: 0,
-            neckExtension: 0,
-            shoulderAbduction: 0 // New joint values for hands
+            wristBend: 0, forearmTwist: 0 // New joint values for hands
         };
 
         this.basePositions = {};
@@ -804,9 +785,7 @@ Object.assign(window.app, {
             groupPosY: 0,
             groupPosZ: 0,
             wristBend: 0,
-            forearmTwist: 0,
-            neckExtension: 0,
-            shoulderAbduction: 0
+            forearmTwist: 0
         };
 
         let orientation = 'vertical'; // vertical (up/down) or horizontal (push/pull) or static
@@ -831,18 +810,12 @@ Object.assign(window.app, {
             t.torsoDrop = phase * 2.0;
             t.hipFlexionL = t.hipFlexionR = phase * 0.8;
             t.kneeFlexionL = t.kneeFlexionR = phase * 1.0;
-            t.shoulderFlexion = -Math.PI/2 - 0.2; // Reach back behind neck
-            t.elbowFlexion = Math.PI/2 + 0.2; // Bend tightly to hold bar
-            t.shoulderAbduction = 0.5; // Flare elbows
-            t.neckExtension = phase * 0.5;
 
         } else if (this.animState === 'press') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            // Since character lies on back (RotX = -90), arms pushing "up" towards ceiling is negative rotation!
-            t.shoulderFlexion = -phase * 1.5;
-            t.elbowFlexion = phase * 1.5; // Extend arm (negative bends in, positive extends relative to negative shoulder)
-            t.shoulderAbduction = 1.0 - (phase * 0.5); // Wide elbows at bottom
+            t.shoulderFlexion = phase * 1.2; // Push forward
+            t.elbowFlexion = -phase * 1.5; // Extend arm
         } else if (this.animState === 'fullbody') {
             phase = (Math.sin(this.time * 2.0) + 1) / 2;
             t.torsoDrop = phase * 2.0;
@@ -850,9 +823,8 @@ Object.assign(window.app, {
             t.kneeFlexionL = t.kneeFlexionR = phase * 1.0;
 
             // Thruster: arms up when drop is 0
-            t.shoulderFlexion = (1 - phase) * -2.8;
-            t.elbowFlexion = phase * 1.5; // Bend elbows at the bottom of the squat!
-            t.shoulderAbduction = phase * 0.5;
+            t.shoulderFlexion = (1 - phase) * -2.5;
+            t.elbowFlexion = 0; // Kept relatively straight at top
         } else if (this.animState === 'deadlift') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoHinge = phase * 1.2; // Hinge forward
@@ -861,12 +833,9 @@ Object.assign(window.app, {
             t.shoulderFlexion = -t.torsoHinge; // Arms hang straight down (counter-rotate)
         } else if (this.animState === 'pullup') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
-            t.torsoDrop = phase * -4.5; // Massive pull UP range
-            t.shoulderFlexion = 2.5 - phase * 2.5; // Arms go from overhead (+2.5) down to sides (0)
-            t.shoulderAbduction = 1.5; // Wide lat flare!
-            t.elbowFlexion = phase * 2.5; // Huge bend
-            t.hipFlexionL = t.hipFlexionR = 0.2; // Legs slightly forward
-            t.kneeFlexionL = t.kneeFlexionR = 0.5; // Knees bent
+            t.torsoDrop = phase * -2.5; // Pull UP (negative drop)
+            t.shoulderFlexion = phase * -1.5; // Pull elbows down relative to torso
+            t.elbowFlexion = phase * 2.0; // Bend elbows
         } else if (this.animState === 'lunge') {
             phase = (Math.sin(this.time * 2.5) + 1) / 2;
             t.torsoDrop = phase * 1.8;
@@ -877,37 +846,31 @@ Object.assign(window.app, {
             t.kneeFlexionR = phase * 1.2;
         } else if (this.animState === 'plank') {
             orientation = 'horizontal';
-            t.torsoHinge = 0; // Flat, rely on groupRotX
-            t.torsoDrop = 0; // Group Y handles ground drop
-            t.shoulderFlexion = -Math.PI / 2; // Arms straight down to support body
-            t.elbowFlexion = -Math.PI / 2; // Bend elbows for forearm plank
-            t.shoulderAbduction = 0.2; // Slight flare
+            t.torsoHinge = Math.PI / 2; // Flat
+            t.torsoDrop = 5.0; // Down to ground
+            t.shoulderFlexion = Math.PI / 2; // Arms straight down
         } else if (this.animState === 'overhead_press') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            t.shoulderFlexion = -1.0 - phase * 1.8; // Start at shoulders, press straight UP (-2.8)
-            t.shoulderAbduction = 0.8 - phase * 0.4; // Elbows out at bottom
-            t.elbowFlexion = 1.8 - phase * 1.8; // Bend elbows deep at bottom, straighten at top
+            t.shoulderFlexion = phase * -2.8; // Press straight up
+            t.elbowFlexion = phase * -1.0; // Straighten elbows
         } else if (this.animState === 'row') {
             orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.torsoHinge = 1.0; // Static hinge
             t.hipFlexionL = t.hipFlexionR = 0.2;
             t.kneeFlexionL = t.kneeFlexionR = 0.2;
-            t.neckExtension = -0.5; // Look up slightly
-            t.shoulderFlexion = 0.5 - phase * 1.5; // Arms hang down, pull UP (negative)
-            t.shoulderAbduction = 0.8; // Flare elbows for rows
+            t.shoulderFlexion = -1.0 + phase * 1.5; // Pull elbows back
             t.elbowFlexion = phase * 1.8; // Bend elbows
         } else if (this.animState === 'curl') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
-            t.shoulderFlexion = -0.2; // Slight forward tilt
-            t.shoulderAbduction = 0.1;
-            t.elbowFlexion = -phase * 2.2; // Curl forearm UP and FORWARD
+            t.shoulderFlexion = phase * -0.2; // slight shift
+            t.elbowFlexion = phase * 2.0; // Curl forearm up
         }
 
         // --- 4.2 LERP Engine (Smooth transitions across exercise changes) ---
         // Lerp factor (higher is faster snap, lower is sluggish). Use delta time for framerate independence.
         // We use a high rate so normal motion tracks fast, but changing exercises takes a half second visually.
-        const lerpSpeed = Math.min(1.0, 5.0 * delta);
+        const lerpSpeed = 5.0 * delta;
 
         this.jointStates.torsoDrop = lerp(this.jointStates.torsoDrop, t.torsoDrop, lerpSpeed);
         this.jointStates.torsoHinge = lerp(this.jointStates.torsoHinge, t.torsoHinge, lerpSpeed);
@@ -922,8 +885,6 @@ Object.assign(window.app, {
         this.jointStates.groupPosZ = lerp(this.jointStates.groupPosZ, t.groupPosZ, lerpSpeed);
         this.jointStates.wristBend = lerp(this.jointStates.wristBend, t.wristBend, lerpSpeed);
         this.jointStates.forearmTwist = lerp(this.jointStates.forearmTwist, t.forearmTwist, lerpSpeed);
-        this.jointStates.neckExtension = lerp(this.jointStates.neckExtension || 0, t.neckExtension, lerpSpeed);
-        this.jointStates.shoulderAbduction = lerp(this.jointStates.shoulderAbduction || 0, t.shoulderAbduction, lerpSpeed);
 
         // Apply interpolated horizontal states
         this.bodyGroup.rotation.x = this.jointStates.groupRotX;
@@ -941,13 +902,11 @@ Object.assign(window.app, {
         const kneeFlexionR = this.jointStates.kneeFlexionR;
         const wristBend = this.jointStates.wristBend;
         const forearmTwist = this.jointStates.forearmTwist;
-        const neckExtension = this.jointStates.neckExtension;
-        const shoulderAbduction = this.jointStates.shoulderAbduction;
 
         // --- 5. Forward Kinematics Application ---
 
         // A) Torso
-        const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back', 'pelvis', 'glute_l', 'glute_r'];
+        const torsoParts = ['head','neck','traps_l','traps_r','pec_l','pec_r','abs_1l','abs_1r','abs_2l','abs_2r','abs_3l','abs_3r','oblique_l','oblique_r','lat_l','lat_r','lower_back', 'pelvis'];
 
         // Pivot point for hinge is lower back / pelvis
         const pivotY = this.basePositions['pelvis'].pos.y;
@@ -998,118 +957,53 @@ Object.assign(window.app, {
 
             // Apply special overrides for animations that don't follow generic chain
             if (this.animState === 'press') armPitch = torsoHinge - phase * 1.5;
-
-            let finalElbowFlex = elbowFlexion;
-            let armYaw = side === 'l' ? shoulderAbduction : -shoulderAbduction; // Flare elbows!
-            let armLength = 1.8;
-            let faTotalLength = 2.0; // Forearm + wrist extension distance
-
-            // --- ARM IK SYSTEM ---
-            // If the exercise requires hands to be strictly locked to a target (like a pullup bar or barbell),
-            // calculate the necessary armPitch and elbowFlexion to reach it from the shoulder pivot!
-            if (['squat', 'pullup', 'deadlift', 'row'].includes(this.animState)) {
-                let targetY = 0, targetZ = 0;
-                let activeIK = false;
-
-                if (this.animState === 'squat') {
-                    // Hands locked to barbell on neck
-                    targetY = (this.bodyParts['neck'] ? this.bodyParts['neck'].mesh.position.y : 4.0) + 0.8;
-                    targetZ = (this.bodyParts['neck'] ? this.bodyParts['neck'].mesh.position.z : 0) - 0.5;
-                    activeIK = true;
-                } else if (this.animState === 'pullup') {
-                    // Hands locked to overhead bar
-                    targetY = 9.0;
-                    targetZ = 0;
-                    activeIK = true;
-                    armYaw = side === 'l' ? 1.2 : -1.2;
-                } else if (this.animState === 'deadlift') {
-                    // Hands locked to barbell hanging or on floor
-                    // Maximum reach of this model's arms is about Y=-2.0 before the knees must hyper-bend.
-                    targetY = 1.0 - phase * 4.0; // From thigh down to mid-shin (-3.0)
-                    targetZ = 1.5 + phase * 1.5;
-                    activeIK = true;
-                    armYaw = side === 'l' ? 0.2 : -0.2; // Slight flare to clear knees
-                } else if (this.animState === 'row') {
-                    targetY = -1.5 - phase * 3.0; // Pulling up to belly
-                    targetZ = 3.0 - phase * 1.0;
-                    activeIK = true;
-                    armYaw = side === 'l' ? 0.8 : -0.8;
-                }
-
-                if (activeIK) {
-                    const effArmLength = armLength * Math.cos(armYaw);
-                    const effFaLength = faTotalLength * Math.cos(armYaw);
-
-                    const dy = targetY - shoulderPivotY;
-                    const dz = targetZ - shoulderPivotZ;
-                    const d = Math.sqrt(dy*dy + dz*dz);
-
-                    const maxReach = effArmLength + effFaLength;
-                    const clampedD = Math.max(0.1, Math.min(d, maxReach - 0.01));
-
-                    const cosElbow = (effArmLength*effArmLength + effFaLength*effFaLength - clampedD*clampedD) / (2 * effArmLength * effFaLength);
-                    finalElbowFlex = Math.PI - Math.acos(Math.max(-1, Math.min(1, cosElbow)));
-
-                    const alpha = Math.acos(Math.max(-1, Math.min(1, (effArmLength*effArmLength + clampedD*clampedD - effFaLength*effFaLength) / (2 * effArmLength * clampedD))));
-                    const targetAngle = Math.atan2(dz, -dy);
-
-                    armPitch = targetAngle - alpha;
-                    if (this.animState === 'squat' || this.animState === 'pullup') armPitch = targetAngle + alpha;
-
-                    armPitch -= torsoHinge;
-                }
-            }
+            if (this.animState === 'pullup') armPitch = torsoHinge - phase * 0.5 + 1.5;
 
             ['bicep', 'tricep'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
                     this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x + armPitch;
-                    this.bodyParts[part].mesh.rotation.z = this.basePositions[part].rot.z + armYaw;
 
-                    const halfLen = armLength / 2;
-                    // X axis: Math.sin(-yaw) moves it outward
-                    // Y axis: cos(pitch) * cos(yaw) keeps the cone radius accurate
-                    // Z axis: Note: Front is NEGATIVE Z in ThreeJS camera when looking at origin from z=22!
-                    this.bodyParts[part].mesh.position.x = this.basePositions[bicep].pos.x + halfLen * Math.sin(-armYaw);
-                    this.bodyParts[part].mesh.position.y = shoulderPivotY - halfLen * Math.cos(armPitch) * Math.cos(armYaw);
-                    this.bodyParts[part].mesh.position.z = shoulderPivotZ - halfLen * Math.sin(armPitch);
+                    // Kinematic Link: bicep length ~1.8, pivot is top
+                    const length = 1.0;
+                    this.bodyParts[part].mesh.position.y = shoulderPivotY - length + (length * Math.cos(armPitch));
+                    this.bodyParts[part].mesh.position.z = shoulderPivotZ + (length * Math.sin(armPitch));
                 }
             });
 
-            // Elbow Joint follows EXACT end of bicep (armLength away from shoulder)
-            let elbowX = this.basePositions[bicep].pos.x + armLength * Math.sin(-armYaw);
-            let elbowY = shoulderPivotY - armLength * Math.cos(armPitch) * Math.cos(armYaw);
-            let elbowZ = shoulderPivotZ - armLength * Math.sin(armPitch);
-
-            if(this.bodyParts[elbow]) {
-                this.bodyParts[elbow].mesh.position.x = elbowX;
-                this.bodyParts[elbow].mesh.position.y = elbowY;
-                this.bodyParts[elbow].mesh.position.z = elbowZ;
-                this.bodyParts[elbow].mesh.rotation.x = armPitch;
-                this.bodyParts[elbow].mesh.rotation.z = armYaw;
+            // Elbow Joint follows end of bicep
+            let elbowY = shoulderPivotY;
+            let elbowZ = shoulderPivotZ;
+            if(this.bodyParts[bicep]) {
+                const armLength = 1.8; // Derived from geometry creation
+                elbowY = shoulderPivotY - armLength * Math.cos(armPitch);
+                elbowZ = shoulderPivotZ + armLength * Math.sin(armPitch);
+                if(this.bodyParts[elbow]) {
+                    this.bodyParts[elbow].mesh.position.y = elbowY;
+                    this.bodyParts[elbow].mesh.position.z = elbowZ;
+                    this.bodyParts[elbow].mesh.rotation.x = armPitch;
+                }
             }
 
-            // Forearm Pivot at Elbow.
-            // Bending the elbow is essentially pitching the forearm relative to the bicep.
-            let forearmPitch = armPitch - finalElbowFlex; // Negative elbow flexion curls it UP (forward in Z!)
+            // Forearm Pivot at Elbow
+            let forearmPitch = armPitch - elbowFlexion; // Negative flex bends up
+
+            if (this.animState === 'press') forearmPitch = armPitch + phase * 0.5; // compensate to keep hands over chest
+            if (this.animState === 'pullup') forearmPitch = armPitch + phase * 1.5;
 
             if(this.bodyParts[forearm]) {
                 this.bodyParts[forearm].mesh.rotation.x = this.basePositions[forearm].rot.x + forearmPitch;
-                this.bodyParts[forearm].mesh.rotation.z = this.basePositions[forearm].rot.z + armYaw; // Inherit yaw from shoulder
-
-                const faHalf = 0.8; // half length of forearm
-                this.bodyParts[forearm].mesh.position.x = elbowX + faHalf * Math.sin(-armYaw);
-                this.bodyParts[forearm].mesh.position.y = elbowY - faHalf * Math.cos(forearmPitch) * Math.cos(armYaw);
-                this.bodyParts[forearm].mesh.position.z = elbowZ - faHalf * Math.sin(forearmPitch);
+                const faLength = 1.0; // half length
+                this.bodyParts[forearm].mesh.position.y = elbowY - faLength * Math.cos(forearmPitch);
+                this.bodyParts[forearm].mesh.position.z = elbowZ + faLength * Math.sin(forearmPitch);
             }
 
-            // Hand follows EXACT end of forearm
-            if(this.bodyParts[hand]) {
-                this.bodyParts[hand].mesh.position.x = elbowX + faTotalLength * Math.sin(-armYaw);
-                this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch) * Math.cos(armYaw);
-                this.bodyParts[hand].mesh.position.z = elbowZ - faTotalLength * Math.sin(forearmPitch);
+            // Hand follows end of forearm
+            if(this.bodyParts[forearm] && this.bodyParts[hand]) {
+                const faTotalLength = 2.0;
+                this.bodyParts[hand].mesh.position.y = elbowY - faTotalLength * Math.cos(forearmPitch);
+                this.bodyParts[hand].mesh.position.z = elbowZ + faTotalLength * Math.sin(forearmPitch);
                 this.bodyParts[hand].mesh.rotation.x = this.basePositions[hand].rot.x + forearmPitch;
-                this.bodyParts[hand].mesh.rotation.z = this.basePositions[hand].rot.z + armYaw;
             }
         };
 
@@ -1133,59 +1027,32 @@ Object.assign(window.app, {
 
             // --- Thigh (Quad/Ham) ---
             const thighLength = 4.3;
-            const lowerLegLength = 3.4;
-
-            let finalHipFlex = specificHipFlex;
-            let finalKneeFlex = specificKneeFlex;
-
-            // Apply IK Constraint for Squat, Deadlift, Thruster to keep feet locked to floor
-            if (['squat', 'deadlift', 'fullbody'].includes(this.animState)) {
-                const distanceToFloor = (hipPivotY - (-7.2));
-                const maxReach = thighLength + lowerLegLength;
-                const d = Math.max(0.1, Math.min(distanceToFloor, maxReach));
-
-                // Law of Cosines
-                const cosKnee = (thighLength*thighLength + lowerLegLength*lowerLegLength - d*d) / (2 * thighLength * lowerLegLength);
-                finalKneeFlex = Math.acos(Math.max(-1, Math.min(1, cosKnee)));
-
-                const alpha = Math.acos(Math.max(-1, Math.min(1, (thighLength*thighLength + d*d - lowerLegLength*lowerLegLength) / (2 * thighLength * d))));
-
-                if (this.animState === 'deadlift') {
-                    finalHipFlex = (alpha || 0) * 0.5 + torsoHinge * 0.8;
-                } else if (this.animState === 'fullbody') {
-                    finalHipFlex = (alpha || 0) + 0.3;
-                } else {
-                    finalHipFlex = (alpha || 0) + 0.5;
-                }
-            }
-
-            // --- Thigh (Quad/Ham) ---
             ['quad', 'ham'].forEach(m => {
                 const part = `${m}_${side}`;
                 if(this.bodyParts[part]) {
-                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - finalHipFlex;
+                    this.bodyParts[part].mesh.rotation.x = this.basePositions[part].rot.x - specificHipFlex;
 
                     const localY = this.basePositions[part].pos.y - this.basePositions['pelvis'].pos.y;
                     const localZ = this.basePositions[part].pos.z - this.basePositions['pelvis'].pos.z;
 
-                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(finalHipFlex) + localZ * Math.sin(finalHipFlex));
-                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(finalHipFlex) + localZ * Math.cos(finalHipFlex));
+                    this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(specificHipFlex) + localZ * Math.sin(specificHipFlex));
+                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
                 }
             });
 
             // --- Knee ---
-            let kneeY = hipPivotY - thighLength * Math.cos(finalHipFlex);
-            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(finalHipFlex);
+            let kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
+            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
 
             if(this.bodyParts[knee]) {
                 this.bodyParts[knee].mesh.position.y = kneeY;
                 this.bodyParts[knee].mesh.position.z = kneeZ;
-                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - finalHipFlex;
+                this.bodyParts[knee].mesh.rotation.x = this.basePositions[knee].rot.x - specificHipFlex;
             }
 
             // --- Lower Leg (Calf/Shin) ---
-            let lowerLegPitch = -finalHipFlex + finalKneeFlex;
-            // Distance from knee to ankle
+            let lowerLegPitch = -specificHipFlex + specificKneeFlex;
+            const lowerLegLength = 3.4; // Distance from knee to ankle
 
             ['calf', 'shin'].forEach(m => {
                 const part = `${m}_${side}`;
@@ -1208,13 +1075,8 @@ Object.assign(window.app, {
                 this.bodyParts[foot].mesh.position.y = kneeY + (localY * Math.cos(lowerLegPitch) - localZ * Math.sin(lowerLegPitch));
                 this.bodyParts[foot].mesh.position.z = kneeZ + (localY * Math.sin(lowerLegPitch) + localZ * Math.cos(lowerLegPitch));
 
-                // Keep foot flat relative to ground (override pitch)
-                if (['squat', 'deadlift', 'fullbody'].includes(this.animState)) {
-                    this.bodyParts[foot].mesh.rotation.x = 0;
-                    this.bodyParts[foot].mesh.position.y = -7.2; // absolute lock to floor
-                } else {
-                    this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
-                }
+                // Keep foot relatively flat to floor unless lunging back leg
+                this.bodyParts[foot].mesh.rotation.x = this.basePositions[foot].rot.x + (lowerLegPitch * 0.2);
             }
         };
 
@@ -1276,7 +1138,7 @@ Object.assign(window.app, {
                   if (this.pullupBar) {
                       this.pullupBar.visible = true;
                       // Fixed bar in world space
-                      this.pullupBar.position.set(0, 9.0, 0);
+                      this.pullupBar.position.set(0, 11.5, 0);
                   }
                   if (this.barbell) this.barbell.visible = false;
                   if (this.dbL) this.dbL.visible = false;
