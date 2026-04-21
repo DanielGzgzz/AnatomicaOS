@@ -384,9 +384,11 @@ Object.assign(window.app, {
             t.hipFlexionR = phase * -0.6;
             t.kneeFlexionR = phase * 2.0;
         } else if (this.animState === 'plank') {
-            t.groupRotX = Math.PI / 2;
-            t.groupPosY = -4.0;
-            t.shoulderFlexion = -Math.PI / 2;
+            t.groupRotX = Math.PI / 2.2;
+            t.groupPosY = -6.0;
+            t.groupPosZ = -4.0;
+            t.shoulderFlexion = -Math.PI / 2.2;
+            t.elbowFlexion = 1.0;
         } else if (this.animState === 'overhead_press') {
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.torsoHinge = -0.1;
