@@ -106,6 +106,7 @@ Object.assign(window.app, {
             mesh.rotation.set(rx, ry, rz);
             mesh.castShadow = false;
             mesh.receiveShadow = false;
+            mesh.userData = { name: name, baseScale: new THREE.Vector3(sx, sy, sz) };
 
             mesh.userData = { name: name, baseScale: new THREE.Vector3(sx, sy, sz) };
 
@@ -210,8 +211,7 @@ Object.assign(window.app, {
         const pullupBarGeo = new THREE.CylinderGeometry(0.15, 0.15, 16, 8);
         this.pullupBar = new THREE.Mesh(pullupBarGeo, ironMat);
         this.pullupBar.rotation.z = Math.PI / 2;
-        this.pullupBar.position.y = 8.0;
-        this.pullupBar.position.z = 1.0;
+        this.pullupBar.position.y = 11.5;
         this.scene.add(this.pullupBar);
 
         this.raycaster = new THREE.Raycaster();
@@ -236,14 +236,9 @@ Object.assign(window.app, {
         this.activeLabel.style.position = 'absolute';
         this.activeLabel.style.color = '#ef4444';
         this.activeLabel.style.padding = '4px 8px';
-        this.activeLabel.style.borderLeft = '2px solid #ef4444';
         this.activeLabel.style.pointerEvents = 'none';
         this.activeLabel.style.display = 'none';
         this.activeLabel.style.zIndex = '900';
-        this.activeLabel.style.fontFamily = 'monospace';
-        this.activeLabel.style.fontSize = '10px';
-        this.activeLabel.style.textShadow = '0 0 5px rgba(0,0,0,1)';
-        this.activeLabel.innerText = "ACTIVE_MOVER";
         container.appendChild(this.activeLabel);
 
         const muscleNames = {
@@ -428,12 +423,19 @@ Object.assign(window.app, {
                         }
                     }
                 });
-            } else {
-                ['hand_l', 'hand_r', 'foot_l', 'foot_r', 'head'].forEach(p => {
+
+                map.synergists.forEach(p => {
                     if(this.bodyParts[p]) {
-                        this.bodyParts[p].trailLine.visible = false;
-                        this.bodyParts[p].trailPositions = [];
+                        this.bodyParts[p].mesh.material.color.setHex(0x00ffff);
+                        this.bodyParts[p].mesh.material.emissive.setHex(0x0088ff);
+                        this.bodyParts[p].mesh.material.emissiveIntensity = 0.3 + pulse * 0.3;
                     }
+                });
+            } else {
+                Object.values(this.bodyParts).forEach(part => {
+                    part.mesh.material.emissive.setHex(0x000000);
+                    part.mesh.material.color.setHex(0xd2b48c);
+                    part.mesh.material.emissiveIntensity = 0;
                 });
             }
 
@@ -585,7 +587,6 @@ Object.assign(window.app, {
             t.shoulderFlexion = phase * -2.8; 
             t.elbowFlexion = phase * -0.5; 
         } else if (this.animState === 'row') {
-            orientation = 'horizontal';
             phase = (Math.sin(this.time * 3) + 1) / 2;
             t.torsoHinge = 1.2; 
             t.torsoDrop = 0.8; 
@@ -601,19 +602,18 @@ Object.assign(window.app, {
 
         const lerpSpeed = 5.0 * delta;
 
-        this.jointStates.torsoDrop = lerp(this.jointStates.torsoDrop, t.torsoDrop, lerpSpeed);
-        this.jointStates.torsoHinge = lerp(this.jointStates.torsoHinge, t.torsoHinge, lerpSpeed);
-        this.jointStates.shoulderFlexion = lerp(this.jointStates.shoulderFlexion, t.shoulderFlexion, lerpSpeed);
-        this.jointStates.elbowFlexion = lerp(this.jointStates.elbowFlexion, t.elbowFlexion, lerpSpeed);
-        this.jointStates.hipFlexionL = lerp(this.jointStates.hipFlexionL, t.hipFlexionL, lerpSpeed);
-        this.jointStates.kneeFlexionL = lerp(this.jointStates.kneeFlexionL, t.kneeFlexionL, lerpSpeed);
-        this.jointStates.hipFlexionR = lerp(this.jointStates.hipFlexionR, t.hipFlexionR, lerpSpeed);
-        this.jointStates.kneeFlexionR = lerp(this.jointStates.kneeFlexionR, t.kneeFlexionR, lerpSpeed);
+        this.jointStates.torsoDrop = t.torsoDrop;
+        this.jointStates.torsoHinge = t.torsoHinge;
+        this.jointStates.shoulderFlexion = t.shoulderFlexion;
+        this.jointStates.elbowFlexion = t.elbowFlexion;
+        this.jointStates.hipFlexionL = t.hipFlexionL;
+        this.jointStates.kneeFlexionL = t.kneeFlexionL;
+        this.jointStates.hipFlexionR = t.hipFlexionR;
+        this.jointStates.kneeFlexionR = t.kneeFlexionR;
         this.jointStates.groupRotX = lerp(this.jointStates.groupRotX, t.groupRotX, lerpSpeed);
         this.jointStates.groupPosY = lerp(this.jointStates.groupPosY, t.groupPosY, lerpSpeed);
         this.jointStates.groupPosZ = lerp(this.jointStates.groupPosZ, t.groupPosZ, lerpSpeed);
-        this.jointStates.wristBend = lerp(this.jointStates.wristBend, t.wristBend, lerpSpeed);
-        this.jointStates.forearmTwist = lerp(this.jointStates.forearmTwist, t.forearmTwist, lerpSpeed);
+        this.jointStates.pelvisZ = t.pelvisZ;
 
         this.bodyGroup.rotation.x = this.jointStates.groupRotX;
         this.bodyGroup.position.y = this.jointStates.groupPosY;
@@ -637,6 +637,7 @@ Object.assign(window.app, {
         torsoParts.forEach(p => {
             if(this.bodyParts[p]) {
                 this.bodyParts[p].mesh.position.y = this.basePositions[p].pos.y - torsoDrop;
+                this.bodyParts[p].mesh.position.z = this.basePositions[p].pos.z + pZ;
 
                 if (torsoHinge !== 0 && p !== 'pelvis') {
                     const dy = this.basePositions[p].pos.y - pivotY;
@@ -666,7 +667,7 @@ Object.assign(window.app, {
             }
 
             const shoulderPivotY = this.bodyParts[delt] ? this.bodyParts[delt].mesh.position.y : this.basePositions[bicep].pos.y - torsoDrop;
-            const shoulderPivotZ = this.bodyParts[delt] ? this.bodyParts[delt].mesh.position.z : this.basePositions[bicep].pos.z;
+            const shoulderPivotZ = this.bodyParts[delt] ? this.bodyParts[delt].mesh.position.z : this.basePositions[bicep].pos.z + pZ;
 
             let armPitch = torsoHinge + shoulderFlexion; 
             
@@ -732,12 +733,12 @@ Object.assign(window.app, {
                     const localY = this.basePositions[part].pos.y - this.basePositions['pelvis'].pos.y;
                     const localZ = this.basePositions[part].pos.z - this.basePositions['pelvis'].pos.z; 
                     this.bodyParts[part].mesh.position.y = hipPivotY + (localY * Math.cos(specificHipFlex) + localZ * Math.sin(specificHipFlex));
-                    this.bodyParts[part].mesh.position.z = hipPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
+                    this.bodyParts[part].mesh.position.z = currentPivotZ + strideZ + (-localY * Math.sin(specificHipFlex) + localZ * Math.cos(specificHipFlex));
                 }
             });
 
             let kneeY = hipPivotY - thighLength * Math.cos(specificHipFlex);
-            let kneeZ = hipPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
+            let kneeZ = currentPivotZ + strideZ + thighLength * Math.sin(specificHipFlex);
 
             if(this.bodyParts[knee]) {
                 this.bodyParts[knee].mesh.position.y = kneeY;
@@ -904,7 +905,6 @@ Object.assign(window.app, {
 
     updateWebGLVisualizer() {
         if (!this.state.schedule || !this.state.webglInitialized) return;
-
         const select = document.getElementById('vis-day-select');
         const dayIndex = select.value;
         document.getElementById('vis-dict-select').value = '';
